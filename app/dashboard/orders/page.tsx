@@ -108,7 +108,7 @@ export default function OrdersPage() {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {filteredOrders.map(order => (
-              <tr key={order.id} className="hover:bg-gray-50">
+              <tr key={order.id} onClick={() => router.push(`/dashboard/orders/view/${order.id}`)} className="hover:bg-gray-50 cursor-pointer">
                 <td className="p-4"><span className="font-mono text-sm">{order.linkId}</span></td>
                 <td className="p-4 font-semibold">${order.amountFiat} {order.currencyFiat}</td>
                 <td className="p-4 text-gray-600">{order.description || '-'}</td>

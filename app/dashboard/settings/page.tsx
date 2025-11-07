@@ -8,6 +8,8 @@ interface Settings {
   businessName: string;
   email: string;
   slug: string;
+  defaultCurrency: string;
+  timezone: string;
   allowUnsolicitedPayments: boolean;
   maxBuyerOrdersPerHour: number;
 }
@@ -54,6 +56,8 @@ export default function SettingsPage() {
     try {
       setSaving(true);
       await api.patch('/merchants/me', {
+        defaultCurrency: settings.defaultCurrency,
+        timezone: settings.timezone,
         allowUnsolicitedPayments: settings.allowUnsolicitedPayments,
         maxBuyerOrdersPerHour: settings.maxBuyerOrdersPerHour,
       });
@@ -101,6 +105,37 @@ export default function SettingsPage() {
                 <a href={`http://116.203.195.248:3001/${settings.slug}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">View Portal</a>
               </div>
               <p className="text-xs text-gray-500 mt-1">Public portal: http://116.203.195.248:3001/{settings.slug}</p>
+            </div>
+          </div>
+
+          <div className="mb-6 border-t border-gray-200 pt-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Business Settings</h2>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Default Currency</label>
+              <select value={settings.defaultCurrency} onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })} className="input">
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Currency for payment requests</p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+              <select value={settings.timezone} onChange={(e) => setSettings({ ...settings, timezone: e.target.value })} className="input">
+                <option value="UTC">UTC - Coordinated Universal Time</option>
+                <option value="America/New_York">EST - Eastern Time</option>
+                <option value="America/Chicago">CST - Central Time</option>
+                <option value="America/Denver">MST - Mountain Time</option>
+                <option value="America/Los_Angeles">PST - Pacific Time</option>
+                <option value="Europe/London">GMT - London</option>
+                <option value="Europe/Paris">CET - Paris</option>
+                <option value="Europe/Berlin">CET - Berlin</option>
+                <option value="Asia/Tokyo">JST - Tokyo</option>
+                <option value="Asia/Dubai">GST - Dubai</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Used for displaying dates and times</p>
             </div>
           </div>
 

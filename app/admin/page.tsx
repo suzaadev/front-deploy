@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/app/lib/api';
 
-type Mode = 'login' | 'register' | 'verify-login' | 'verify-register';
+type Mode = 'register' | 'login' | 'verify-register' | 'verify-login';
 
-export default function MerchantAuthPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
-  const [businessName, setBusinessName] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +22,7 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      await api.post('/auth/register', { email, businessName });
+      await api.post('/admin/register', { email });
       setMessage('Check your email for the verification PIN!');
       setMode('verify-register');
     } catch (error: any) {
@@ -40,7 +39,7 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      await api.post('/auth/login', { email });
+      await api.post('/admin/login', { email });
       setMessage('Check your email for the login PIN!');
       setMode('verify-login');
     } catch (error: any) {
@@ -56,10 +55,10 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/verify', { email, pin });
+      const response = await api.post('/admin/verify', { email, pin });
       const token = response.data.data.token;
-      localStorage.setItem('token', token);
-      router.push('/dashboard/overview');
+      localStorage.setItem('adminToken', token);
+      router.push('/admin/dashboard');
     } catch (error: any) {
       setError(error.response?.data?.error || 'Verification failed');
     } finally {
@@ -68,11 +67,11 @@ export default function MerchantAuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">SUZAA</h1>
-          <p className="text-gray-600">Merchant Dashboard</p>
+          <p className="text-gray-600">Super Admin Portal</p>
         </div>
 
         {error && (
@@ -96,7 +95,7 @@ export default function MerchantAuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input"
-                placeholder="merchant@example.com"
+                placeholder="admin@suzaa.com"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">We'll send a PIN to your email</p>
@@ -107,25 +106,13 @@ export default function MerchantAuthPage() {
             </button>
 
             <button type="button" onClick={() => setMode('register')} className="w-full text-sm text-blue-600 hover:underline">
-              No account? Create one now
+              No account? Register as Super Admin
             </button>
           </form>
         )}
 
         {mode === 'register' && (
           <form onSubmit={handleRegister}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
-              <input
-                type="text"
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                className="input"
-                placeholder="My Store"
-                required
-              />
-            </div>
-
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
@@ -133,13 +120,14 @@ export default function MerchantAuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input"
-                placeholder="merchant@example.com"
+                placeholder="admin@suzaa.com"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">We'll send a verification PIN to this email</p>
             </div>
 
             <button type="submit" disabled={loading} className="w-full btn-primary mb-4">
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? 'Sending PIN...' : 'Register & Send PIN'}
             </button>
 
             <button type="button" onClick={() => setMode('login')} className="w-full text-sm text-blue-600 hover:underline">
@@ -186,8 +174,8 @@ export default function MerchantAuthPage() {
         )}
 
         <div className="mt-6 text-center">
-          <a href="/admin" className="text-sm text-gray-600 hover:underline">
-            Admin Portal →
+          <a href="/dashboard" className="text-sm text-gray-600 hover:underline">
+            ← Back to Merchant Login
           </a>
         </div>
       </div>
