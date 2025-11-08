@@ -7,8 +7,13 @@ import { Plus, X, Trash2 } from 'lucide-react';
 
 interface Wallet {
   id: string;
-  blockchain: string;
-  address: string;
+  network: string;
+  tokenSymbol: string;
+  tokenName?: string;
+  tokenType: string;
+  tokenDecimals: number;
+  contractAddress?: string;
+  walletAddress: string;
   label?: string;
   enabled: boolean;
   createdAt: string;
@@ -22,8 +27,13 @@ export default function WalletsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    blockchain: 'SOLANA',
-    address: '',
+    network: 'SOLANA',
+    tokenSymbol: 'SOL',
+    tokenName: '',
+    tokenType: 'NATIVE',
+    tokenDecimals: 9,
+    contractAddress: '',
+    walletAddress: '',
     label: '',
   });
 
@@ -59,21 +69,40 @@ export default function WalletsPage() {
     e.preventDefault();
     setError('');
     
-    if (!formData.address.trim()) {
+    if (!formData.walletAddress.trim()) {
       setError('Wallet address is required');
+      return;
+    }
+
+    if (!formData.tokenSymbol.trim()) {
+      setError('Token symbol is required');
       return;
     }
     
     try {
       setSaving(true);
       await api.post('/wallets', {
-        blockchain: formData.blockchain,
-        address: formData.address.trim(),
+        network: formData.network,
+        tokenSymbol: formData.tokenSymbol.trim().toUpperCase(),
+        tokenName: formData.tokenName.trim() || undefined,
+        tokenType: formData.tokenType,
+        tokenDecimals: parseInt(formData.tokenDecimals.toString()),
+        contractAddress: formData.contractAddress.trim() || undefined,
+        walletAddress: formData.walletAddress.trim(),
         label: formData.label.trim() || undefined,
       });
       
       setShowAddModal(false);
-      setFormData({ blockchain: 'SOLANA', address: '', label: '' });
+      setFormData({ 
+        network: 'SOLANA', 
+        tokenSymbol: 'SOL', 
+        tokenName: '',
+        tokenType: 'NATIVE',
+        tokenDecimals: 9,
+        contractAddress: '',
+        walletAddress: '', 
+        label: '' 
+      });
       fetchWallets();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to add wallet');
@@ -102,22 +131,46 @@ export default function WalletsPage() {
     }
   }
 
-  function getBlockchainColor(blockchain: string) {
-    switch (blockchain) {
+  function getNetworkColor(network: string) {
+    switch (network) {
       case 'SOLANA': return 'bg-purple-100 text-purple-800';
       case 'ETHEREUM': return 'bg-blue-100 text-blue-800';
       case 'BITCOIN': return 'bg-orange-100 text-orange-800';
+      case 'POLYGON': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }
 
-  function getBlockchainIcon(blockchain: string) {
-    switch (blockchain) {
+  function getNetworkIcon(network: string) {
+    switch (network) {
       case 'SOLANA': return '◎';
       case 'ETHEREUM': return 'Ξ';
       case 'BITCOIN': return '₿';
+      case 'POLYGON': return '⬡';
       default: return '?';
     }
+  }
+
+  function handleNetworkChange(network: string) {
+    // Auto-set defaults based on network
+    let defaults = { tokenSymbol: 'SOL', tokenType: 'NATIVE', tokenDecimals: 9 };
+    
+    switch (network) {
+      case 'SOLANA':
+        defaults = { tokenSymbol: 'SOL', tokenType: 'NATIVE', tokenDecimals: 9 };
+        break;
+      case 'ETHEREUM':
+        defaults = { tokenSymbol: 'ETH', tokenType: 'NATIVE', tokenDecimals: 18 };
+        break;
+      case 'BITCOIN':
+        defaults = { tokenSymbol: 'BTC', tokenType: 'NATIVE', tokenDecimals: 8 };
+        break;
+      case 'POLYGON':
+        defaults = { tokenSymbol: 'MATIC', tokenType: 'NATIVE', tokenDecimals: 18 };
+        break;
+    }
+    
+    setFormData({ ...formData, network, ...defaults, contractAddress: '' });
   }
 
   if (loading) {
@@ -146,7 +199,7 @@ export default function WalletsPage() {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <p className="text-sm text-blue-800">
-          💡 <strong>Tip:</strong> Add wallet addresses for different blockchains. When enabled, buyers can pay using that blockchain.
+          💡 <strong>Tip:</strong> Add wallet addresses for different blockchains and tokens. When enabled, buyers can pay using that blockchain and token.
         </p>
       </div>
 
@@ -167,14 +220,20 @@ export default function WalletsPage() {
             <div key={wallet.id} className="bg-white border border-gray-200 rounded-lg p-6">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{getBlockchainIcon(wallet.blockchain)}</span>
+                  <span className="text-2xl">{getNetworkIcon(wallet.network)}</span>
                   <div>
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getBlockchainColor(wallet.blockchain)}`}>
-                      {wallet.blockchain}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getNetworkColor(wallet.network)}`}>
+                        {wallet.network}
+                      </span>
+                      <span className="inline-block px-2 py-1 rounded text-xs font-bold bg-gray-100 text-gray-800">
+                        {wallet.tokenSymbol}
+                      </span>
+                    </div>
                     {wallet.label && (
                       <p className="text-xs text-gray-500 mt-1">{wallet.label}</p>
                     )}
+                    <p className="text-xs text-gray-400 mt-1">{wallet.tokenType}</p>
                   </div>
                 </div>
                 <button
@@ -185,12 +244,21 @@ export default function WalletsPage() {
                 </button>
               </div>
 
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-1">Address</p>
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-1">Wallet Address</p>
                 <p className="text-xs font-mono bg-gray-50 p-2 rounded break-all">
-                  {wallet.address}
+                  {wallet.walletAddress}
                 </p>
               </div>
+
+              {wallet.contractAddress && (
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-1">Contract Address</p>
+                  <p className="text-xs font-mono bg-gray-50 p-2 rounded break-all">
+                    {wallet.contractAddress}
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">
@@ -213,8 +281,8 @@ export default function WalletsPage() {
       )}
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 my-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Add Wallet</h2>
               <button onClick={() => { setShowAddModal(false); setError(''); }} className="text-gray-400 hover:text-gray-600">
@@ -230,27 +298,94 @@ export default function WalletsPage() {
 
             <form onSubmit={handleAddWallet}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Blockchain *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Network *</label>
                 <select
-                  value={formData.blockchain}
-                  onChange={(e) => setFormData({ ...formData, blockchain: e.target.value })}
+                  value={formData.network}
+                  onChange={(e) => handleNetworkChange(e.target.value)}
                   className="input"
                 >
                   <option value="SOLANA">Solana</option>
                   <option value="ETHEREUM">Ethereum</option>
                   <option value="BITCOIN">Bitcoin</option>
+                  <option value="POLYGON">Polygon</option>
                 </select>
               </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Token Symbol *</label>
+                <input
+                  type="text"
+                  value={formData.tokenSymbol}
+                  onChange={(e) => setFormData({ ...formData, tokenSymbol: e.target.value.toUpperCase() })}
+                  placeholder="e.g., SOL, USDC, ETH"
+                  className="input"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Enter the token ticker (e.g., SOL, USDC, USDT)</p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Token Type *</label>
+                <select
+                  value={formData.tokenType}
+                  onChange={(e) => setFormData({ ...formData, tokenType: e.target.value })}
+                  className="input"
+                >
+                  <option value="NATIVE">Native (e.g., SOL, ETH, BTC)</option>
+                  <option value="SPL">SPL Token (Solana)</option>
+                  <option value="ERC20">ERC-20 (Ethereum)</option>
+                  <option value="BEP20">BEP-20 (BSC)</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Token Decimals *</label>
+                <input
+                  type="number"
+                  value={formData.tokenDecimals}
+                  onChange={(e) => setFormData({ ...formData, tokenDecimals: parseInt(e.target.value) || 0 })}
+                  min="0"
+                  max="18"
+                  className="input"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">9 for SOL, 6 for USDC, 18 for ETH</p>
+              </div>
+
+              {formData.tokenType !== 'NATIVE' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contract/Mint Address</label>
+                  <input
+                    type="text"
+                    value={formData.contractAddress}
+                    onChange={(e) => setFormData({ ...formData, contractAddress: e.target.value })}
+                    placeholder="Token contract or mint address"
+                    className="input font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Required for tokens like USDC, USDT</p>
+                </div>
+              )}
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Wallet Address *</label>
                 <input
                   type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Enter wallet address"
+                  value={formData.walletAddress}
+                  onChange={(e) => setFormData({ ...formData, walletAddress: e.target.value })}
+                  placeholder="Your receiving wallet address"
                   className="input font-mono text-sm"
                   required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Token Name (Optional)</label>
+                <input
+                  type="text"
+                  value={formData.tokenName}
+                  onChange={(e) => setFormData({ ...formData, tokenName: e.target.value })}
+                  placeholder="e.g., USD Coin"
+                  className="input"
                 />
               </div>
 

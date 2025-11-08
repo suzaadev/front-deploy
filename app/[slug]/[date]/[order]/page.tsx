@@ -13,7 +13,7 @@ interface PaymentData {
   status: string;
   expiresAt: string;
   merchant: { name: string; slug: string; };
-  availableChains: string[];
+  availableOptions: Array<{ network: string; token: string; }>;
 }
 
 export default function ChainSelectionPage() {
@@ -39,10 +39,10 @@ export default function ChainSelectionPage() {
       const paymentData = data.data;
       setPayment(paymentData);
       
-      // Auto-redirect if only one chain available
-      if (paymentData.availableChains && paymentData.availableChains.length === 1) {
-        const chain = paymentData.availableChains[0].toLowerCase();
-        router.push(`/${slug}/${date}/${order}/${chain}`);
+      // Auto-redirect if only one network+token combination available
+      if (paymentData.availableOptions && paymentData.availableOptions.length === 1) {
+        const option = paymentData.availableOptions[0];
+        router.push(`/${slug}/${date}/${order}/${option.network.toLowerCase()}/${option.token.toLowerCase()}`);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load payment');
@@ -51,26 +51,28 @@ export default function ChainSelectionPage() {
     }
   }
 
-  function getChainDisplayName(chain: string): string {
+  function getNetworkDisplayName(network: string): string {
     const names: Record<string, string> = {
       'SOLANA': 'Solana',
       'ETHEREUM': 'Ethereum',
       'BITCOIN': 'Bitcoin',
+      'POLYGON': 'Polygon',
     };
-    return names[chain] || chain;
+    return names[network] || network;
   }
 
-  function getChainColor(chain: string): string {
+  function getNetworkColor(network: string): string {
     const colors: Record<string, string> = {
       'SOLANA': 'from-purple-500 to-purple-600',
       'ETHEREUM': 'from-blue-500 to-blue-600',
       'BITCOIN': 'from-orange-500 to-orange-600',
+      'POLYGON': 'from-indigo-500 to-indigo-600',
     };
-    return colors[chain] || 'from-gray-500 to-gray-600';
+    return colors[network] || 'from-gray-500 to-gray-600';
   }
 
-  function handleChainSelect(chain: string) {
-    router.push(`/${slug}/${date}/${order}/${chain.toLowerCase()}`);
+  function handleOptionSelect(network: string, token: string) {
+    router.push(`/${slug}/${date}/${order}/${network.toLowerCase()}/${token.toLowerCase()}`);
   }
 
   if (loading) {
@@ -113,7 +115,7 @@ export default function ChainSelectionPage() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
               <p className="text-red-800 font-medium">This payment has expired</p>
             </div>
-          ) : payment.availableChains && payment.availableChains.length === 0 ? (
+          ) : payment.availableOptions && payment.availableOptions.length === 0 ? (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
               <p className="text-yellow-800 font-medium">No payment methods available</p>
               <p className="text-yellow-700 text-sm mt-2">Please contact the merchant</p>
@@ -124,19 +126,19 @@ export default function ChainSelectionPage() {
                 Select Payment Method
               </h2>
               <p className="text-sm text-gray-600 mb-6 text-center">
-                Choose which blockchain you'd like to use for payment
+                Choose which cryptocurrency you'd like to use for payment
               </p>
               
               <div className="space-y-3">
-                {payment.availableChains.map((chain) => (
+                {payment.availableOptions.map((option) => (
                   <button
-                    key={chain}
-                    onClick={() => handleChainSelect(chain)}
-                    className={`w-full bg-gradient-to-r ${getChainColor(chain)} text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-between group`}
+                    key={`${option.network}-${option.token}`}
+                    onClick={() => handleOptionSelect(option.network, option.token)}
+                    className={`w-full bg-gradient-to-r ${getNetworkColor(option.network)} text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-between group`}
                   >
                     <div className="text-left">
-                      <p className="font-bold text-lg">{getChainDisplayName(chain)}</p>
-                      <p className="text-sm opacity-90">Pay with {getChainDisplayName(chain)}</p>
+                      <p className="font-bold text-lg">{getNetworkDisplayName(option.network)} {option.token}</p>
+                      <p className="text-sm opacity-90">Pay with {option.token} on {getNetworkDisplayName(option.network)}</p>
                     </div>
                     <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -146,7 +148,7 @@ export default function ChainSelectionPage() {
               <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-xs text-blue-900 font-medium mb-2">What happens next?</p>
                 <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
-                  <li>Select your preferred blockchain</li>
+                  <li>Select your preferred cryptocurrency</li>
                   <li>You'll see payment details and QR code</li>
                   <li>Send the exact amount shown</li>
                   <li>Payment is auto-detected</li>
