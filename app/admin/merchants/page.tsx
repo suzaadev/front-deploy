@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/app/lib/api';
+import { adminApi } from '@/app/lib/adminApi';
 
 interface Merchant {
   id: string;
@@ -25,9 +25,9 @@ export default function AdminMerchantsPage() {
   async function fetchMerchants() {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adminToken');
-      const response = await api.get('/admin/merchants', {
-        headers: { Authorization: 'Bearer ' + token }
+      const adminToken = localStorage.getItem("adminToken");
+      const response = await adminApi.get('/admin/merchants', {
+        
       });
       setMerchants(response.data.data || []);
     } catch (error) {
@@ -41,9 +41,9 @@ export default function AdminMerchantsPage() {
     if (!confirm('Are you sure you want to suspend this merchant?')) return;
     
     try {
-      const token = localStorage.getItem('adminToken');
-      await api.post('/admin/merchants/' + id + '/suspend', {}, {
-        headers: { Authorization: 'Bearer ' + token }
+      const adminToken = localStorage.getItem("adminToken");
+      await adminApi.post('/admin/merchants/' + id + '/suspend', {}, {
+        
       });
       alert('Merchant suspended');
       fetchMerchants();
@@ -54,9 +54,9 @@ export default function AdminMerchantsPage() {
 
   async function handleUnsuspend(id: string) {
     try {
-      const token = localStorage.getItem('adminToken');
-      await api.post('/admin/merchants/' + id + '/unsuspend', {}, {
-        headers: { Authorization: 'Bearer ' + token }
+      const adminToken = localStorage.getItem("adminToken");
+      await adminApi.post('/admin/merchants/' + id + '/unsuspend', {}, {
+        
       });
       alert('Merchant unsuspended');
       fetchMerchants();
@@ -70,9 +70,9 @@ export default function AdminMerchantsPage() {
     if (!confirm('Are you ABSOLUTELY sure? All their data will be deleted!')) return;
     
     try {
-      const token = localStorage.getItem('adminToken');
-      await api.delete('/admin/merchants/' + id, {
-        headers: { Authorization: 'Bearer ' + token }
+      const adminToken = localStorage.getItem("adminToken");
+      await adminApi.delete('/admin/merchants/' + id, {
+        
       });
       alert('Merchant deleted');
       fetchMerchants();

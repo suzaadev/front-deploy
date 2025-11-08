@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/app/lib/api';
+import { adminApi } from '@/app/lib/adminApi';
 
 interface Stats {
   totalMerchants: number;
@@ -22,9 +22,9 @@ export default function AdminDashboardPage() {
   async function fetchStats() {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adminToken');
-      const response = await api.get('/admin/stats', {
-        headers: { Authorization: 'Bearer ' + token }
+      const adminToken = localStorage.getItem("adminToken");
+      const response = await adminApi.get('/admin/stats', {
+        
       });
       setStats(response.data.data);
     } catch (error) {
