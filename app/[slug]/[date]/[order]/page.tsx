@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { QRCodeCanvas } from 'qrcode.react';
-import { Copy } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 
 interface PaymentData {
   linkId: string;
@@ -14,22 +13,17 @@ interface PaymentData {
   status: string;
   expiresAt: string;
   merchant: { name: string; slug: string; };
-  wallets: Array<{
-    id: string;
-    blockchain: string;
-    address: string;
-    symbol: string;
-    cryptoAmount: number;
-    coinPrice: number;
-  }>;
+  availableChains: string[];
 }
 
-export default function PaymentPage() {
+export default function ChainSelectionPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const date = params.date as string;
   const order = params.order as string;
   const linkId = `${slug}/${date}/${order}`;
+  
   const [payment, setPayment] = useState<PaymentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,7 +36,14 @@ export default function PaymentPage() {
       const response = await fetch(`http://116.203.195.248:3000/public/payment/${linkId}`);
       if (!response.ok) throw new Error('Payment not found');
       const data = await response.json();
-      setPayment(data.data);
+      const paymentData = data.data;
+      setPayment(paymentData);
+      
+      // Auto-redirect if only one chain available
+      if (paymentData.availableChains && paymentData.availableChains.length === 1) {
+        const chain = paymentData.availableChains[0].toLowerCase();
+        router.push(`/${slug}/${date}/${order}/${chain}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load payment');
     } finally {
@@ -50,13 +51,26 @@ export default function PaymentPage() {
     }
   }
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    alert('Copied!');
+  function getChainDisplayName(chain: string): string {
+    const names: Record<string, string> = {
+      'SOLANA': 'Solana',
+      'ETHEREUM': 'Ethereum',
+      'BITCOIN': 'Bitcoin',
+    };
+    return names[chain] || chain;
   }
 
-  function getSolanaUri(addr: string, amt: number, memo: string) {
-    return `solana:${addr}?amount=${amt}&memo=${memo}`;
+  function getChainColor(chain: string): string {
+    const colors: Record<string, string> = {
+      'SOLANA': 'from-purple-500 to-purple-600',
+      'ETHEREUM': 'from-blue-500 to-blue-600',
+      'BITCOIN': 'from-orange-500 to-orange-600',
+    };
+    return colors[chain] || 'from-gray-500 to-gray-600';
+  }
+
+  function handleChainSelect(chain: string) {
+    router.push(`/${slug}/${date}/${order}/${chain.toLowerCase()}`);
   }
 
   if (loading) {
@@ -78,153 +92,80 @@ export default function PaymentPage() {
     );
   }
 
-  const wallet = payment.wallets[0];
   const isExpired = payment.status === 'EXPIRED';
-  const solanaUri = wallet?.blockchain === 'SOLANA' 
-    ? getSolanaUri(wallet.address, wallet.cryptoAmount, payment.orderNumber) 
-    : wallet?.address || '';
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4">
       <div className="max-w-lg mx-auto">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-xl p-4 text-white">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs opacity-90">Payment Request</p>
-              <h1 className="text-lg font-bold">from {payment.merchant.name}</h1>
-            </div>
-            <div className="text-right">
-              <p className="text-xs opacity-90">Amount</p>
-              <p className="text-xl font-bold">{payment.currency} {payment.amountUsd}</p>
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-xl p-6 text-white">
+          <div className="text-center">
+            <p className="text-sm opacity-90 mb-1">Payment Request</p>
+            <h1 className="text-2xl font-bold mb-2">{payment.merchant.name}</h1>
+            <div className="bg-white/20 rounded-lg p-3 inline-block">
+              <p className="text-3xl font-bold">{payment.currency} {payment.amountUsd}</p>
+              <p className="text-xs opacity-90 mt-1">Order #{payment.orderNumber}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white rounded-b-xl shadow p-4">
+        <div className="bg-white rounded-b-xl shadow p-6">
           {isExpired ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-red-800 text-sm font-medium">This payment has expired</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+              <p className="text-red-800 font-medium">This payment has expired</p>
             </div>
-          ) : !wallet ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-yellow-800 text-sm font-medium">No wallets configured</p>
+          ) : payment.availableChains && payment.availableChains.length === 0 ? (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+              <p className="text-yellow-800 font-medium">No payment methods available</p>
+              <p className="text-yellow-700 text-sm mt-2">Please contact the merchant</p>
             </div>
           ) : (
             <div>
-              <div className="mb-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-2">Payment Instructions</h2>
-                <a 
-                  href={solanaUri} 
-                  className="block w-full bg-purple-600 text-white py-3 rounded-lg text-center font-medium mb-3 hover:bg-purple-700"
-                >
-                  Pay with Wallet
-                </a>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-3">
-                  <p className="text-xs text-green-800">
-                    <strong>Recommended:</strong> Scan QR code below. Auto-fills address, amount, and memo.
-                  </p>
-                </div>
+              <h2 className="text-lg font-bold text-gray-900 mb-2 text-center">
+                Select Payment Method
+              </h2>
+              <p className="text-sm text-gray-600 mb-6 text-center">
+                Choose which blockchain you'd like to use for payment
+              </p>
+              
+              <div className="space-y-3">
+                {payment.availableChains.map((chain) => (
+                  <button
+                    key={chain}
+                    onClick={() => handleChainSelect(chain)}
+                    className={`w-full bg-gradient-to-r ${getChainColor(chain)} text-white rounded-xl p-4 hover:shadow-lg transition-all duration-200 flex items-center justify-between group`}
+                  >
+                    <div className="text-left">
+                      <p className="font-bold text-lg">{getChainDisplayName(chain)}</p>
+                      <p className="text-sm opacity-90">Pay with {getChainDisplayName(chain)}</p>
+                    </div>
+                    <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                ))}
               </div>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-xs text-blue-900 font-medium mb-1">How to pay</p>
-                <ol className="text-xs text-blue-800 space-y-0.5 list-decimal list-inside">
-                  <li>Scan QR or copy wallet address</li>
-                  <li>Send exact {wallet.symbol} amount</li>
-                  <li>Payment auto-detected</li>
+              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-xs text-blue-900 font-medium mb-2">What happens next?</p>
+                <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                  <li>Select your preferred blockchain</li>
+                  <li>You'll see payment details and QR code</li>
+                  <li>Send the exact amount shown</li>
+                  <li>Payment is auto-detected</li>
                 </ol>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">Amount to Send</h3>
-                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <div>
-                    <p className="text-lg font-bold text-gray-900">
-                      {wallet.cryptoAmount.toFixed(6)} {wallet.symbol}
-                    </p>
-                    <p className="text-xs text-gray-500">Approx {payment.currency} {payment.amountUsd}</p>
-                  </div>
-                  <button 
-                    onClick={() => copyToClipboard(wallet.cryptoAmount.toFixed(6))} 
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" />
-                    Copy
-                  </button>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Scan QR Code</h3>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center mb-3">
-                  <p className="text-xs text-green-800 font-medium">Best for Mobile</p>
-                  <p className="text-xs text-green-700">QR auto-fills payment details</p>
-                </div>
-                <div className="bg-white border-2 border-gray-200 rounded-lg p-4 flex justify-center mb-2">
-                  <QRCodeCanvas value={solanaUri} size={240} level="H" />
-                </div>
-                <p className="text-center text-xs text-gray-600 mb-2">
-                  Scan with Phantom, Solflare, Backpack
-                </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-center">
-                  <p className="text-blue-800">
-                    {wallet.cryptoAmount.toFixed(4)} {wallet.symbol} • Order: {payment.orderNumber}
-                  </p>
-                </div>
-              </div>
-              
-              {wallet.blockchain === 'SOLANA' && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">Solana Memo (Optional)</h3>
-                  <p className="text-xs text-gray-600 mb-2">Helps match payment to order</p>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      value={payment.orderNumber} 
-                      readOnly 
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-center" 
-                    />
-                    <button 
-                      onClick={() => copyToClipboard(payment.orderNumber)} 
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">Wallet Address</h3>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="text" 
-                    value={wallet.address} 
-                    readOnly 
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs" 
-                  />
-                  <button 
-                    onClick={() => copyToClipboard(wallet.address)} 
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-xs text-yellow-800 font-medium mb-1">Important</p>
-                <ul className="text-xs text-yellow-800 space-y-0.5 list-disc list-inside">
-                  <li>Send only {wallet.symbol} on {wallet.blockchain}</li>
-                  <li>Double-check address</li>
-                  <li>Transactions are irreversible</li>
-                </ul>
               </div>
             </div>
           )}
           
+          {payment.description && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500 font-medium mb-1">Payment Details:</p>
+              <p className="text-sm text-gray-700">{payment.description}</p>
+            </div>
+          )}
+          
           <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-            <p className="text-xs text-gray-500">Expires: {new Date(payment.expiresAt).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">
+              Expires: {new Date(payment.expiresAt).toLocaleString()}
+            </p>
             <p className="text-xs text-gray-500 mt-1">Secured by Suzaa</p>
           </div>
         </div>
