@@ -68,7 +68,7 @@ export default function AdminDashboardPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a href="/admin/merchants" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
+          <a href="/admin/dashboard/merchants" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
             <p className="font-semibold text-gray-900">Manage Merchants</p>
             <p className="text-sm text-gray-600 mt-1">View and manage all merchants</p>
           </a>

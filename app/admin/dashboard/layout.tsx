@@ -28,8 +28,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   };
 
   const isDashboard = pathname === '/admin/dashboard';
-  const isMerchants = pathname?.startsWith('/admin/merchants');
-  const isSettings = pathname?.startsWith('/admin/settings');
+  const isMerchants = pathname?.startsWith('/admin/dashboard/merchants');
+  const isSettings = pathname?.startsWith('/admin/dashboard/settings');
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -45,12 +45,12 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             <span className="font-medium">Dashboard</span>
           </a>
 
-          <a href="/admin/merchants" className={getLinkClass(isMerchants)}>
+          <a href="/admin/dashboard/merchants" className={getLinkClass(isMerchants)}>
             <span>👥</span>
             <span className="font-medium">Merchants</span>
           </a>
 
-          <a href="/admin/settings" className={getLinkClass(isSettings)}>
+          <a href="/admin/dashboard/settings" className={getLinkClass(isSettings)}>
             <span>⚙️</span>
             <span className="font-medium">Settings</span>
           </a>
