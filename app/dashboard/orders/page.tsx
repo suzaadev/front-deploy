@@ -173,6 +173,7 @@ export default function OrdersPage() {
                     value={order.settlementStatus}
                     onChange={(e) => updateSettlementStatus(order.id, e.target.value)}
                     disabled={updatingStatus === order.id}
+                    onClick={(event) => event.stopPropagation()}
                     className="rounded-lg border border-[var(--suzaa-border)] bg-white px-3 py-2 text-xs font-medium text-[var(--suzaa-midnight)] focus:border-[var(--suzaa-blue)] focus:outline-none focus:ring-4 focus:ring-[var(--suzaa-blue)]/15"
                   >
                     <option value="PENDING">Pending</option>

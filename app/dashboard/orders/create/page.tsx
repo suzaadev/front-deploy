@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/app/lib/api';
 
@@ -11,6 +11,29 @@ export default function CreatePaymentPage() {
   const [expiryMinutes, setExpiryMinutes] = useState('60');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [defaultExpiry, setDefaultExpiry] = useState(60);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDefaultExpiry() {
+      try {
+        const response = await api.get('/merchants/me');
+        const value = response.data?.data?.defaultPaymentExpiryMinutes;
+        if (isMounted && typeof value === 'number') {
+          const allowed = [15, 30, 60, 120];
+          const resolved = allowed.includes(value) ? value : 60;
+          setDefaultExpiry(resolved);
+          setExpiryMinutes(String(resolved));
+        }
+      } catch (err) {
+        console.warn('Failed to load merchant defaults', err);
+      }
+    }
+    loadDefaultExpiry();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,8 +46,9 @@ export default function CreatePaymentPage() {
     }
 
     const parsedExpiry = parseInt(expiryMinutes);
-    if (isNaN(parsedExpiry) || parsedExpiry < 1) {
-      setError('Please enter valid expiry minutes');
+    const allowedExpiries = [15, 30, 60, 120];
+    if (isNaN(parsedExpiry) || !allowedExpiries.includes(parsedExpiry)) {
+      setError('Expiry must be 15, 30, 60, or 120 minutes');
       return;
     }
 
@@ -131,16 +155,19 @@ export default function CreatePaymentPage() {
                 Expiry Time (minutes)
               </label>
               <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
-                Default expiry is 60 minutes. Links automatically close afterwards.
+                Default expiry is {defaultExpiry} minute{defaultExpiry === 1 ? '' : 's'}. Links automatically close afterwards.
               </p>
-              <input
-                type="number"
+              <select
                 value={expiryMinutes}
                 onChange={(e) => setExpiryMinutes(e.target.value)}
-                placeholder="60"
                 className="input mt-3"
                 required
-              />
+              >
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">60 minutes</option>
+                <option value="120">120 minutes</option>
+              </select>
             </div>
 
             <div className="flex flex-wrap gap-3">

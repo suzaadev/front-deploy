@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 export default function MerchantPortalPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const fallbackName = slug
     .split('-')
@@ -36,6 +37,13 @@ export default function MerchantPortalPage() {
 
     fetchMerchant();
   }, [slug]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'lookup' || tab === 'create') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   async function handleLookup(e: React.FormEvent) {
     e.preventDefault();

@@ -12,6 +12,7 @@ interface Settings {
   timezone: string;
   allowUnsolicitedPayments: boolean;
   maxBuyerOrdersPerHour: number;
+  defaultPaymentExpiryMinutes: number;
 }
 
 export default function SettingsPage() {
@@ -36,7 +37,13 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       const response = await api.get('/merchants/me');
-      setSettings(response.data.data);
+      const data = response.data.data;
+      if (data) {
+        setSettings({
+          ...data,
+          defaultPaymentExpiryMinutes: data.defaultPaymentExpiryMinutes ?? 60,
+        });
+      }
     } catch (error: any) {
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
@@ -60,6 +67,7 @@ export default function SettingsPage() {
         timezone: settings.timezone,
         allowUnsolicitedPayments: settings.allowUnsolicitedPayments,
         maxBuyerOrdersPerHour: settings.maxBuyerOrdersPerHour,
+        defaultPaymentExpiryMinutes: settings.defaultPaymentExpiryMinutes,
       });
       setSuccess('Settings saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
@@ -152,6 +160,22 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Max payments per buyer per hour</label>
               <input type="number" min="1" max="100" value={settings.maxBuyerOrdersPerHour} onChange={(e) => setSettings({ ...settings, maxBuyerOrdersPerHour: parseInt(e.target.value) || 1 })} className="input" />
               <p className="text-xs text-gray-500 mt-1">Rate limit for public payment creation (1-100 per hour)</p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Default payment expiry</label>
+              <select
+                value={settings.defaultPaymentExpiryMinutes}
+                onChange={(e) => setSettings({ ...settings, defaultPaymentExpiryMinutes: parseInt(e.target.value, 10) })}
+                className="input"
+              >
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={60}>60 minutes</option>
+                <option value={120}>120 minutes</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Determines the pre-filled expiry when you create new payment links.
+              </p>
             </div>
           </div>
 
