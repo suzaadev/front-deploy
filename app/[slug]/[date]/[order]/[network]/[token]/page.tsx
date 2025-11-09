@@ -26,11 +26,21 @@ interface PaymentData {
   description: string;
   status: string;
   expiresAt: string;
-  merchant: { name: string; slug: string; };
+  merchant: { name: string; slug: string };
   wallets: Wallet[];
 }
 
-export default function PaymentPage() {
+function formatNetwork(network: string): string {
+  const names: Record<string, string> = {
+    SOLANA: 'Solana',
+    ETHEREUM: 'Ethereum',
+    BITCOIN: 'Bitcoin',
+    POLYGON: 'Polygon',
+  };
+  return names[network] || network;
+}
+
+export default function PublicPaymentPage() {
   const params = useParams();
   const slug = params.slug as string;
   const date = params.date as string;
@@ -38,12 +48,16 @@ export default function PaymentPage() {
   const network = (params.network as string).toUpperCase();
   const token = (params.token as string).toUpperCase();
   const linkId = `${slug}/${date}/${order}`;
-  
+
   const [payment, setPayment] = useState<PaymentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState('');
 
-  useEffect(() => { fetchPayment(); }, [linkId]);
+  useEffect(() => {
+    fetchPayment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkId]);
 
   async function fetchPayment() {
     try {
@@ -59,223 +73,226 @@ export default function PaymentPage() {
     }
   }
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    alert('Copied!');
+  function copy(value: string, key: string) {
+    navigator.clipboard.writeText(value);
+    setCopied(key);
+    setTimeout(() => setCopied(''), 2000);
   }
 
-  function getPaymentUri(wallet: Wallet, amount: number, memo: string) {
+  function buildPaymentUri(wallet: Wallet, amount: number, memo: string) {
     if (wallet.network === 'SOLANA') {
       return `solana:${wallet.walletAddress}?amount=${amount}&memo=${memo}`;
-    } else if (wallet.network === 'ETHEREUM') {
-      return `ethereum:${wallet.walletAddress}@1?value=${amount}`;
+    }
+    if (wallet.network === 'ETHEREUM') {
+      return `ethereum:${wallet.walletAddress}?value=${amount}`;
     }
     return wallet.walletAddress;
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex min-h-screen items-center justify-center bg-[var(--suzaa-surface-subtle)]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--suzaa-blue)]/20 border-t-[var(--suzaa-blue)]" />
       </div>
     );
   }
 
   if (error || !payment) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Not Found</h1>
-          <p className="text-gray-600">{error}</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--suzaa-surface-subtle)] px-4">
+        <div className="space-y-3 rounded-2xl border border-[var(--suzaa-border)] bg-white/95 px-6 py-6 text-center shadow-soft">
+          <h1 className="text-base font-semibold text-[var(--suzaa-navy)]">Payment unavailable</h1>
+          <p className="text-sm text-[var(--suzaa-muted)]">{error}</p>
         </div>
       </div>
     );
   }
 
-  // Find the wallet for the selected network+token
-  const wallet = payment.wallets.find(w => w.network === network && w.tokenSymbol === token);
+  const wallet = payment.wallets.find(
+    (w) => w.network === network && w.tokenSymbol === token
+  );
   const isExpired = payment.status === 'EXPIRED';
-  
+
   if (!wallet) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Method Not Available</h1>
-          <p className="text-gray-600">No wallet found for {network} {token}</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--suzaa-surface-subtle)] px-4">
+        <div className="space-y-3 rounded-2xl border border-[var(--suzaa-border)] bg-white/95 px-6 py-6 text-center shadow-soft">
+          <h1 className="text-base font-semibold text-[var(--suzaa-navy)]">Method unavailable</h1>
+          <p className="text-sm text-[var(--suzaa-muted)]">
+            No wallet is configured for {formatNetwork(network)} {token}. Please select another option.
+          </p>
         </div>
       </div>
     );
   }
 
-  const paymentUri = getPaymentUri(wallet, wallet.cryptoAmount, payment.orderNumber);
+  const paymentUri = buildPaymentUri(wallet, wallet.cryptoAmount, payment.orderNumber);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 px-4">
-      <div className="max-w-lg mx-auto">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-xl p-4 text-white">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs opacity-90">Payment Request</p>
-              <h1 className="text-lg font-bold">from {payment.merchant.name}</h1>
-            </div>
-            <div className="text-right">
-              <p className="text-xs opacity-90">Amount</p>
-              <p className="text-xl font-bold">{payment.currency} {payment.amountUsd}</p>
+    <div className="min-h-screen bg-[var(--suzaa-surface-subtle)] py-8 px-4">
+      <div className="mx-auto w-full max-w-md">
+        <div className="overflow-hidden rounded-3xl border border-[var(--suzaa-border)] bg-white/90 shadow-soft backdrop-blur">
+          <div
+            className="px-6 py-8"
+            style={{ background: 'linear-gradient(135deg, #0a84ff 0%, #00b8a9 100%)' }}
+          >
+            <p className="text-[0.65rem] uppercase tracking-[0.32em] text-white/70">Payment request</p>
+            <h1 className="mt-2 text-2xl font-semibold text-white">from {payment.merchant.name}</h1>
+            <p className="mt-2 text-xs text-white/75">
+              Order #{payment.orderNumber} • {formatNetwork(wallet.network)} {wallet.tokenSymbol}
+            </p>
+            <div className="mt-4 rounded-2xl bg-white/15 px-4 py-3 text-xs text-white/85">
+              Amount due · {payment.currency} {payment.amountUsd.toFixed(2)}
             </div>
           </div>
-        </div>
-        
-        <div className="bg-white rounded-b-xl shadow p-4">
-          {isExpired ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-red-800 text-sm font-medium">This payment has expired</p>
-            </div>
-          ) : (
-            <div>
-              <div className="mb-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-2">Payment Instructions</h2>
-                <a 
-                  href={paymentUri} 
-                  className="block w-full bg-purple-600 text-white py-3 rounded-lg text-center font-medium mb-3 hover:bg-purple-700"
-                >
-                  Pay with Wallet
-                </a>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-3">
-                  <p className="text-xs text-green-800">
-                    <strong>Recommended:</strong> Scan QR code below. Auto-fills address, amount, and memo.
+
+          <div className="space-y-5 bg-white px-6 py-6">
+            {isExpired ? (
+              <div className="rounded-2xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-center text-xs text-[var(--suzaa-danger)]">
+                This payment link has expired. Contact the merchant for a new request.
+              </div>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Recommended
+                  </p>
+                  <a
+                    href={paymentUri}
+                    className="btn-primary mt-3 w-full justify-center text-sm"
+                  >
+                    Open in compatible wallet
+                  </a>
+                  <p className="mt-3 text-xs text-[var(--suzaa-muted)]">
+                    Scanning the QR or using the button above auto-fills the address, amount, and memo fields in most
+                    wallets.
                   </p>
                 </div>
-              </div>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-xs text-blue-900 font-medium mb-1">How to pay</p>
-                <ol className="text-xs text-blue-800 space-y-0.5 list-decimal list-inside">
-                  <li>Scan QR or copy wallet address</li>
-                  <li>Send exact {wallet.tokenSymbol} amount</li>
-                  <li>Payment auto-detected</li>
-                </ol>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">Amount to Send</h3>
-                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <div>
-                    <p className="text-lg font-bold text-gray-900">
-                      {wallet.cryptoAmount.toFixed(wallet.tokenDecimals)} {wallet.tokenSymbol}
+
+                <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Amount to send
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xl font-semibold text-[var(--suzaa-midnight)]">
+                        {wallet.cryptoAmount.toFixed(wallet.tokenDecimals)} {wallet.tokenSymbol}
+                      </p>
+                      <p className="text-xs text-[var(--suzaa-muted)]">
+                        Approx {payment.currency} {payment.amountUsd.toFixed(2)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copy(wallet.cryptoAmount.toFixed(wallet.tokenDecimals), 'amount')}
+                      className="btn-secondary px-3 py-2 text-[0.65rem]"
+                    >
+                      {copied === 'amount' ? 'Copied' : 'Copy amount'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--suzaa-border)] bg-white px-4 py-4 shadow-soft">
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Scan QR code
+                  </p>
+                  <div className="mt-4 flex justify-center rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-4">
+                    <QRCodeCanvas value={paymentUri} size={200} level="H" />
+                  </div>
+                  <p className="mt-3 text-center text-xs text-[var(--suzaa-muted)]">
+                    {wallet.network === 'SOLANA' && 'Scan with Phantom, Solflare, or Backpack'}
+                    {wallet.network === 'ETHEREUM' && 'Scan with MetaMask, Rainbow, Trust Wallet'}
+                    {wallet.network === 'BITCOIN' && 'Scan with any compatible Bitcoin wallet'}
+                  </p>
+                  <div className="mt-3 rounded-xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-3 py-2 text-center text-xs text-[var(--suzaa-muted)]">
+                    {wallet.cryptoAmount.toFixed(4)} {wallet.tokenSymbol} • Order {payment.orderNumber}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Wallet address
+                  </p>
+                  <div className="mt-3 flex items-start gap-2">
+                    <div className="flex-1 rounded-xl border border-[var(--suzaa-border)] bg-white px-3 py-2 font-mono text-xs leading-snug text-[var(--suzaa-midnight)] break-all">
+                      {wallet.walletAddress}
+                    </div>
+                    <button
+                      onClick={() => copy(wallet.walletAddress, 'wallet')}
+                      className="btn-secondary px-3 py-2 text-[0.65rem]"
+                    >
+                      {copied === 'wallet' ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                {wallet.contractAddress && (
+                  <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
+                    <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                      Token contract address
                     </p>
-                    <p className="text-xs text-gray-500">Approx {payment.currency} {payment.amountUsd}</p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="input flex-1 font-mono text-xs leading-tight">
+                        {wallet.contractAddress}
+                      </div>
+                      <button
+                        onClick={() => copy(wallet.contractAddress!, 'contract')}
+                        className="btn-secondary px-3 py-2 text-[0.65rem]"
+                      >
+                        {copied === 'contract' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-[var(--suzaa-warning)]">
+                      Use this contract address when sending {wallet.tokenSymbol} tokens.
+                    </p>
                   </div>
-                  <button 
-                    onClick={() => copyToClipboard(wallet.cryptoAmount.toFixed(wallet.tokenDecimals))} 
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" />
-                    Copy
-                  </button>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Scan QR Code</h3>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center mb-3">
-                  <p className="text-xs text-green-800 font-medium">Best for Mobile</p>
-                  <p className="text-xs text-green-700">QR auto-fills payment details</p>
-                </div>
-                <div className="bg-white border-2 border-gray-200 rounded-lg p-4 flex justify-center mb-2">
-                  <QRCodeCanvas value={paymentUri} size={240} level="H" />
-                </div>
-                <p className="text-center text-xs text-gray-600 mb-2">
-                  {wallet.network === 'SOLANA' && 'Scan with Phantom, Solflare, Backpack'}
-                  {wallet.network === 'ETHEREUM' && 'Scan with MetaMask, Trust Wallet'}
-                  {wallet.network === 'BITCOIN' && 'Scan with Bitcoin wallet'}
+                )}
+
+                {wallet.network === 'SOLANA' && (
+                  <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
+                    <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                      Optional memo
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--suzaa-muted)]">
+                      Helps match your transaction to this order.
+                    </p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={payment.orderNumber}
+                        readOnly
+                        className="input flex-1 text-center font-mono text-xs"
+                      />
+                      <button
+                        onClick={() => copy(payment.orderNumber, 'memo')}
+                        className="btn-secondary px-3 py-2 text-[0.65rem]"
+                      >
+                        {copied === 'memo' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {payment.description && (
+              <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
+                <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                  Description
                 </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-center">
-                  <p className="text-blue-800">
-                    {wallet.cryptoAmount.toFixed(4)} {wallet.tokenSymbol} • Order: {payment.orderNumber}
-                  </p>
-                </div>
+                <p className="mt-2 text-xs text-[var(--suzaa-midnight)]">{payment.description}</p>
               </div>
-              
-              {wallet.network === 'SOLANA' && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">Solana Memo (Optional)</h3>
-                  <p className="text-xs text-gray-600 mb-2">Helps match payment to order</p>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      value={payment.orderNumber} 
-                      readOnly 
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-center" 
-                    />
-                    <button 
-                      onClick={() => copyToClipboard(payment.orderNumber)} 
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">Wallet Address</h3>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="text" 
-                    value={wallet.walletAddress} 
-                    readOnly 
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs" 
-                  />
-                  <button 
-                    onClick={() => copyToClipboard(wallet.walletAddress)} 
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-              
-              {wallet.contractAddress && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-1">Token Contract Address</h3>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="text" 
-                      value={wallet.contractAddress} 
-                      readOnly 
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs" 
-                    />
-                    <button 
-                      onClick={() => copyToClipboard(wallet.contractAddress)} 
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-xs text-yellow-800 font-medium mb-1">Important</p>
-                <ul className="text-xs text-yellow-800 space-y-0.5 list-disc list-inside">
-                  <li>Send only {wallet.tokenSymbol} on {wallet.network}</li>
-                  <li>Double-check address</li>
-                  <li>Transactions are irreversible</li>
-                </ul>
-              </div>
+            )}
+
+            <div className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+              Expires {new Date(payment.expiresAt).toLocaleString()}
             </div>
-          )}
-          
-          <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-            <p className="text-xs text-gray-500">Expires: {new Date(payment.expiresAt).toLocaleString()}</p>
-            <p className="text-xs text-gray-500 mt-1">Secured by Suzaa</p>
           </div>
         </div>
+
+        <p className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
+        </p>
       </div>
-      
-      <p className="text-center mt-4 text-xs text-gray-600">
-        Powered by <strong>Suzaa</strong>
-      </p>
     </div>
   );
 }

@@ -47,87 +47,106 @@ export default function OverviewPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
-        <p className="text-gray-600">Welcome back! Here's your payment summary</p>
+  const content = (
+    <div className="space-y-10">
+      <div>
+        <h2 className="text-2xl font-semibold text-[var(--suzaa-navy)]">Payment Intelligence</h2>
+        <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
+          Snapshot of your recent activity across all settlement channels.
+        </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-6 h-6 text-blue-600" />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: 'Total Requests',
+            value: stats.total,
+            icon: CreditCard,
+            tone: 'bg-[rgba(10,132,255,0.12)] text-[var(--suzaa-blue)]',
+          },
+          {
+            label: 'Pending',
+            value: stats.pending,
+            icon: Clock,
+            tone: 'bg-[rgba(245,158,11,0.15)] text-[var(--suzaa-warning)]',
+          },
+          {
+            label: 'Settled',
+            value: stats.settled,
+            icon: CheckCircle,
+            tone: 'bg-[rgba(16,185,129,0.12)] text-[var(--suzaa-success)]',
+          },
+          {
+            label: 'Total Volume',
+            value: `$${stats.totalAmount.toFixed(2)}`,
+            icon: DollarSign,
+            tone: 'bg-[rgba(11,17,31,0.08)] text-[var(--suzaa-midnight)]',
+          },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} className="surface-card">
+              <div className={`mb-6 inline-flex h-11 w-11 items-center justify-center rounded-xl ${item.tone}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+                {item.label}
+              </p>
+              <p className="mt-3 text-3xl font-semibold text-[var(--suzaa-navy)]">
+                {item.value}
+              </p>
             </div>
-          </div>
-          <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 mb-1">Pending</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 mb-1">Settled</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.settled}</p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-          <p className="text-3xl font-bold text-gray-900">${stats.totalAmount.toFixed(2)}</p>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Recent Orders */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
+      <div className="surface-card p-0">
+        <div className="border-b border-[var(--suzaa-border)] px-6 py-5">
+          <h3 className="text-lg font-semibold text-[var(--suzaa-navy)]">Recent Requests</h3>
+          <p className="text-sm text-[var(--suzaa-muted)]">
+            Track the latest customer payment intents and settlement status.
+          </p>
         </div>
         <div className="p-6">
           {recentOrders.length === 0 ? (
-            <p className="text-center text-gray-600 py-8">No orders yet</p>
+            <div className="rounded-2xl border border-dashed border-[var(--suzaa-border)] bg-[var(--suzaa-surface-subtle)] py-12 text-center">
+              <p className="text-sm font-medium text-[var(--suzaa-muted)]">
+                No payment requests yet. Create your first link to start tracking activity.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-4">
+            <div className="divide-y divide-[var(--suzaa-border)]/60">
               {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                <div
+                  key={order.id}
+                  className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
-                    <p className="font-mono text-sm text-gray-900 mb-1">{order.linkId}</p>
-                    <p className="text-sm text-gray-500">{order.description || 'No description'}</p>
+                    <p className="font-mono text-sm font-semibold text-[var(--suzaa-midnight)]">
+                      {order.linkId}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--suzaa-muted)]">
+                      {order.description || 'No description provided'}
+                    </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900 mb-1">${order.amountFiat} {order.currencyFiat}</p>
-                    <span className={`inline-block px-2 py-1 rounded text-xs ${
-                      order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      order.status === 'SETTLED' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                  <div className="flex items-center gap-4 sm:text-right">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--suzaa-midnight)]">
+                        ${order.amountFiat} {order.currencyFiat}
+                      </p>
+                      <p className="text-xs text-[var(--suzaa-muted)]">
+                        {new Date(order.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <span
+                      className={`badge ${
+                        order.status === 'PENDING'
+                          ? 'badge-warning'
+                          : order.status === 'SETTLED'
+                          ? 'badge-success'
+                          : 'text-[var(--suzaa-muted)]'
+                      }`}
+                    >
                       {order.status}
                     </span>
                   </div>
@@ -139,4 +158,14 @@ export default function OverviewPage() {
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--suzaa-blue)]/30 border-t-[var(--suzaa-blue)]" />
+      </div>
+    );
+  }
+
+  return content;
 }

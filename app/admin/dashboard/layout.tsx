@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import { LayoutDashboard, Users, Settings, LogOut } from 'lucide-react';
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -21,53 +22,93 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     router.push('/admin');
   }
 
-  const getLinkClass = (isActive: boolean) => {
-    return isActive 
-      ? 'flex items-center gap-3 px-4 py-3 rounded-lg mb-2 bg-blue-50 text-blue-600'
-      : 'flex items-center gap-3 px-4 py-3 rounded-lg mb-2 text-gray-700 hover:bg-gray-50';
+  const navigation = [
+    { name: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Merchants', href: '/admin/dashboard/merchants', icon: Users },
+    { name: 'Settings', href: '/admin/dashboard/settings', icon: Settings },
+  ];
+
+  const activeNav =
+    navigation.find((item) => pathname?.startsWith(item.href)) ?? navigation[0];
+
+  const descriptions: Record<string, string> = {
+    Overview: 'System-wide pulse of payment volumes, risk alerts, and activity.',
+    Merchants: 'Approve, suspend, and govern merchant accounts.',
+    Settings: 'Configure super-admin controls and operational policies.',
   };
 
-  const isDashboard = pathname === '/admin/dashboard';
-  const isMerchants = pathname?.startsWith('/admin/dashboard/merchants');
-  const isSettings = pathname?.startsWith('/admin/dashboard/settings');
-
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-blue-600">SUZAA</h1>
-          <p className="text-xs text-gray-500 mt-1">Super Admin</p>
+    <div className="flex min-h-screen bg-[var(--suzaa-surface-subtle)]">
+      <aside className="nav-rail px-5 pb-8 pt-10">
+        <div className="mb-12 flex items-center gap-3 px-1">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--suzaa-navy)] text-lg font-semibold text-white shadow-soft">
+            Σ
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[var(--suzaa-navy)]">SUZAA</p>
+            <p className="text-[0.65rem] uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+              Super Admin
+            </p>
+          </div>
         </div>
 
-        <nav className="flex-1 p-4">
-          <a href="/admin/dashboard" className={getLinkClass(isDashboard)}>
-            <span>📊</span>
-            <span className="font-medium">Dashboard</span>
-          </a>
-
-          <a href="/admin/dashboard/merchants" className={getLinkClass(isMerchants)}>
-            <span>👥</span>
-            <span className="font-medium">Merchants</span>
-          </a>
-
-          <a href="/admin/dashboard/settings" className={getLinkClass(isSettings)}>
-            <span>⚙️</span>
-            <span className="font-medium">Settings</span>
-          </a>
+        <nav className="flex-1 space-y-1">
+          {navigation.map((item) => {
+            const isActive = pathname?.startsWith(item.href);
+            const Icon = item.icon;
+            return (
+              <a
+                key={item.name}
+                href={item.href}
+                className={isActive ? 'nav-link-active' : 'nav-link'}
+              >
+                <Icon className="h-5 w-5" />
+                {item.name}
+              </a>
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
+        <div className="mt-8 rounded-2xl border border-[var(--suzaa-border)] bg-white p-4 shadow-soft">
+          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+            Session
+          </p>
+          <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
+            Sign out securely when leaving the control centre.
+          </p>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
+            className="btn-ghost mt-4 w-full justify-center border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)]"
           >
-            <span>🚪</span>
-            <span>Logout</span>
+            <LogOut className="h-4 w-4" />
+            Logout
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">{children}</main>
+      <div className="relative flex-1 overflow-hidden">
+        <div className="gradient-shell pointer-events-none absolute inset-x-0 top-0 h-56 opacity-95" />
+        <div className="relative z-10 flex h-full flex-col">
+          <header className="px-10 pt-16 text-white">
+            <div className="flex flex-wrap items-baseline gap-2 text-sm leading-tight text-white/70 md:text-base">
+              <span className="font-semibold text-white">Super Admin</span>
+              <span className="opacity-50">|</span>
+              <span className="font-semibold text-white">{activeNav.name}</span>
+              <span className="opacity-50">|</span>
+              <span className="max-w-xl text-white/70">
+                {descriptions[activeNav.name] ??
+                  'Operate securely across the SUZAA network with full administrative control.'}
+              </span>
+            </div>
+          </header>
+
+          <main className="relative -mt-10 flex-1 overflow-y-auto px-6 pb-16">
+            <div className="mx-auto w-full max-w-6xl space-y-10 rounded-3xl bg-white/85 p-8 shadow-[0_50px_120px_-60px_rgba(11,17,31,0.42)] backdrop-blur">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

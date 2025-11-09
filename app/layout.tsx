@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-background text-dark">
+      <body className="min-h-screen bg-[var(--suzaa-surface-subtle)] text-[var(--suzaa-midnight)]">
         {children}
       </body>
     </html>

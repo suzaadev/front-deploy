@@ -72,8 +72,8 @@ export default function PaymentRequestDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--suzaa-blue)]/30 border-t-[var(--suzaa-blue)]" />
       </div>
     );
   }
@@ -85,152 +85,191 @@ export default function PaymentRequestDetailPage() {
   const timeRemaining = isExpired ? 'Expired' : getTimeRemaining(payment.expiresAt);
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <button onClick={() => router.push('/dashboard/orders')} className="text-blue-600 hover:underline mb-4">
-          ← Back to Payment Requests
-        </button>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Payment Request Details</h1>
-            <p className="text-gray-600">Order ID: {payment.linkId}</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={copyPaymentLink} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              {copied ? '✓ Copied!' : '📋 Copy Link'}
-            </button>
-            <a href={paymentUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              View Payment Page
-            </a>
-          </div>
+    <div className="space-y-8">
+      <button
+        onClick={() => router.push('/dashboard/orders')}
+        className="btn-ghost text-sm font-semibold text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+      >
+        ← Back to Payment Requests
+      </button>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--suzaa-navy)]">
+            Payment Request Details
+          </h1>
+          <p className="mt-1 text-sm text-[var(--suzaa-muted)]">Order ID: {payment.linkId}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={copyPaymentLink} className="btn-secondary">
+            {copied ? '✓ Link Copied' : 'Copy Payment Link'}
+          </button>
+          <a
+            href={paymentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary"
+          >
+            View Payment Page
+          </a>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Information</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Amount</p>
-                <p className="text-2xl font-bold text-gray-900">${payment.amountFiat} {payment.currencyFiat}</p>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <div className="surface-card">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Payment Information</h2>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[var(--suzaa-surface-muted)]/70 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Amount
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-[var(--suzaa-midnight)]">
+                  ${payment.amountFiat} {payment.currencyFiat}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <span className={'inline-block px-3 py-1 rounded-full text-sm font-medium ' + (
-                  payment.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                )}>
+                <p className="text-xs uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Status
+                </p>
+                <span
+                  className={`badge mt-2 ${
+                    payment.status === 'ACTIVE' ? 'badge-success' : ''
+                  }`}
+                >
                   {payment.status}
                 </span>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Order Number</p>
-                <p className="font-mono text-gray-900">#{payment.orderNumber}</p>
+                <p className="text-xs uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Order Number
+                </p>
+                <p className="mt-2 font-mono text-sm text-[var(--suzaa-midnight)]">
+                  #{payment.orderNumber}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Created By</p>
-                <p className="text-gray-900 capitalize">{payment.createdBy}</p>
+                <p className="text-xs uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Created By
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[var(--suzaa-midnight)] capitalize">
+                  {payment.createdBy}
+                </p>
               </div>
             </div>
             {payment.description && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">Description</p>
-                <p className="text-gray-900 mt-1">{payment.description}</p>
+              <div className="mt-6 rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)]/70 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Description
+                </p>
+                <p className="mt-2 text-sm text-[var(--suzaa-midnight)]">{payment.description}</p>
               </div>
             )}
             {payment.buyerNote && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">Buyer Note</p>
-                <p className="text-gray-900 mt-1">{payment.buyerNote}</p>
+              <div className="mt-4 rounded-2xl border border-[var(--suzaa-border)] bg-white px-4 py-4 shadow-soft">
+                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Buyer Note
+                </p>
+                <p className="mt-2 text-sm text-[var(--suzaa-midnight)]">{payment.buyerNote}</p>
               </div>
             )}
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Timeline</h2>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">Payment Request Created</p>
-                  <p className="text-sm text-gray-600">{new Date(payment.createdAt).toLocaleString()}</p>
-                  {payment.createdByIp && <p className="text-xs text-gray-500">IP: {payment.createdByIp}</p>}
+          <div className="surface-card">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Timeline</h2>
+            <div className="mt-6 space-y-6">
+              {[
+                {
+                  title: 'Payment Request Created',
+                  value: new Date(payment.createdAt).toLocaleString(),
+                  accent: 'bg-[var(--suzaa-blue)]',
+                  meta: payment.createdByIp ? `IP: ${payment.createdByIp}` : undefined,
+                },
+                {
+                  title: isExpired ? 'Expired' : 'Expires',
+                  value: new Date(payment.expiresAt).toLocaleString(),
+                  accent: isExpired ? 'bg-[var(--suzaa-danger)]' : 'bg-[var(--suzaa-success)]',
+                  meta: timeRemaining,
+                },
+                {
+                  title: 'Last Updated',
+                  value: new Date(payment.updatedAt).toLocaleString(),
+                  accent: 'bg-[var(--suzaa-muted)]',
+                },
+              ].map((item) => (
+                <div key={item.title} className="flex items-start gap-4">
+                  <span className={`mt-2 h-2 w-2 rounded-full ${item.accent}`} />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-[var(--suzaa-midnight)]">
+                      {item.title}
+                    </p>
+                    <p className="text-sm text-[var(--suzaa-muted)]">{item.value}</p>
+                    {item.meta && (
+                      <p className="text-xs text-[var(--suzaa-muted)]/80">{item.meta}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className={'w-2 h-2 rounded-full mt-2 ' + (isExpired ? 'bg-red-600' : 'bg-green-600')} />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{isExpired ? 'Expired' : 'Expires'}</p>
-                  <p className="text-sm text-gray-600">{new Date(payment.expiresAt).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">{timeRemaining}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-gray-400 rounded-full mt-2" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">Last Updated</p>
-                  <p className="text-sm text-gray-600">{new Date(payment.updatedAt).toLocaleString()}</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Link</h2>
-            <div className="bg-gray-50 p-3 rounded border border-gray-200 font-mono text-sm break-all">
+          <div className="surface-card">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Payment Link</h2>
+            <div className="mt-5 rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-5 font-mono text-sm text-[var(--suzaa-midnight)] break-all">
               {paymentUrl}
             </div>
-            <p className="text-xs text-gray-500 mt-2">Share this link with your customer to receive payment</p>
+            <p className="mt-2 text-xs text-[var(--suzaa-muted)]">
+              Share this secure link with your customer to complete payment.
+            </p>
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Settlement Status</h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Current Status</p>
-                <span className={'inline-block px-3 py-1 rounded-full text-sm font-medium ' + (
-                  payment.settlementStatus === 'SETTLED' ? 'bg-green-100 text-green-800' :
-                  payment.settlementStatus === 'PAID' ? 'bg-blue-100 text-blue-800' :
-                  payment.settlementStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                  payment.settlementStatus === 'REISSUED' ? 'bg-purple-100 text-purple-800' :
-                  'bg-gray-100 text-gray-800'
-                )}>
-                  {payment.settlementStatus}
-                </span>
-              </div>
+          <div className="surface-card">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Settlement Status</h2>
+            <div className="mt-5 space-y-3">
+              <p className="text-xs uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                Current Status
+              </p>
+              <span
+                className={`badge ${
+                  payment.settlementStatus === 'SETTLED'
+                    ? 'badge-success'
+                    : payment.settlementStatus === 'PAID'
+                    ? 'badge'
+                    : payment.settlementStatus === 'REJECTED'
+                    ? 'badge-danger'
+                    : payment.settlementStatus === 'REISSUED'
+                    ? 'badge-warning'
+                    : 'badge'
+                }`}
+              >
+                {payment.settlementStatus}
+              </span>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Expiry Time</span>
-                <span className="text-sm font-medium text-gray-900">{payment.expiryMinutes} min</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Order Date</span>
-                <span className="text-sm font-medium text-gray-900">{payment.orderDate}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Payment ID</span>
-                <span className="text-sm font-mono text-gray-900">{payment.id.slice(0, 8)}...</span>
-              </div>
+          <div className="surface-card">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Quick Stats</h2>
+            <div className="mt-5 space-y-4 rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)]/80 px-4 py-5">
+              <QuickStat label="Expiry Time" value={`${payment.expiryMinutes} min`} />
+              <QuickStat label="Order Date" value={payment.orderDate} />
+              <QuickStat label="Payment ID" value={`${payment.id.slice(0, 12)}…`} mono />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
-            <div className="space-y-2">
-              <button onClick={() => window.open(paymentUrl, '_blank')} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+          <div className="surface-card">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Actions</h2>
+            <div className="mt-5 space-y-3">
+              <button
+                onClick={() => window.open(paymentUrl, '_blank')}
+                className="btn-primary w-full justify-center"
+              >
                 Open Payment Page
               </button>
-              <button onClick={copyPaymentLink} className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+              <button onClick={copyPaymentLink} className="btn-secondary w-full justify-center">
                 Copy Payment Link
               </button>
-              <button onClick={fetchPaymentDetails} className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+              <button onClick={fetchPaymentDetails} className="btn-ghost w-full justify-center">
                 Refresh Details
               </button>
             </div>
@@ -255,4 +294,29 @@ function getTimeRemaining(expiresAt: string): string {
   if (days > 0) return days + 'd ' + (hours % 24) + 'h remaining';
   if (hours > 0) return hours + 'h ' + (minutes % 60) + 'm remaining';
   return minutes + 'm remaining';
+}
+
+function QuickStat({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+        {label}
+      </span>
+      <span
+        className={`text-sm font-semibold text-[var(--suzaa-midnight)] ${
+          mono ? 'font-mono' : ''
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
 }

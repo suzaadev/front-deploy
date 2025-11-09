@@ -70,52 +70,111 @@ export default function OrdersPage() {
   });
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" /></div>;
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--suzaa-blue)]/30 border-t-[var(--suzaa-blue)]" />
+      </div>
+    );
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payment Requests</h1>
-          <p className="text-gray-600">Manage and track all your payment requests</p>
+          <h2 className="text-2xl font-semibold text-[var(--suzaa-navy)]">Payment Requests</h2>
+          <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
+            Manage your active and settled payment links in one place.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={fetchOrders} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">↻ Refresh</button>
-          <button onClick={() => router.push('/dashboard/orders/create')} className="btn-primary">+ Create New Request</button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={fetchOrders}
+            className="btn-ghost border border-[var(--suzaa-border)] bg-white px-4 py-2 text-sm font-semibold"
+          >
+            ↻ Refresh
+          </button>
+          <button
+            onClick={() => router.push('/dashboard/orders/create')}
+            className="btn-primary"
+          >
+            + Create Request
+          </button>
         </div>
       </div>
 
-      <div className="mb-6 flex gap-2">
-        <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>All</button>
-        <button onClick={() => setFilter('active')} className={`px-4 py-2 rounded-lg ${filter === 'active' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Active</button>
-        <button onClick={() => setFilter('expired')} className={`px-4 py-2 rounded-lg ${filter === 'expired' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Expired</button>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: 'All', value: 'all' },
+          { label: 'Active', value: 'active' },
+          { label: 'Expired', value: 'expired' },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setFilter(option.value)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              filter === option.value
+                ? 'bg-[var(--suzaa-blue)] text-white shadow-soft'
+                : 'border border-[var(--suzaa-border)] bg-white text-[var(--suzaa-muted)] hover:border-[var(--suzaa-blue)]/50 hover:text-[var(--suzaa-blue)]'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="overflow-hidden rounded-2xl border border-[var(--suzaa-border)] bg-white shadow-soft">
+        <table className="w-full table-auto">
+          <thead className="bg-[var(--suzaa-surface-muted)]/60">
             <tr>
-              <th className="text-left p-4 font-medium text-gray-700">Order ID</th>
-              <th className="text-left p-4 font-medium text-gray-700">Amount</th>
-              <th className="text-left p-4 font-medium text-gray-700">Description</th>
-              <th className="text-left p-4 font-medium text-gray-700">Created By</th>
-              <th className="text-left p-4 font-medium text-gray-700">Status</th>
-              <th className="text-left p-4 font-medium text-gray-700">Settlement</th>
-              <th className="text-left p-4 font-medium text-gray-700">Created</th>
-              <th className="text-left p-4 font-medium text-gray-700">Actions</th>
+              <th className="table-head px-5 py-4 text-left">Order ID</th>
+              <th className="table-head px-5 py-4 text-left">Amount</th>
+              <th className="table-head px-5 py-4 text-left">Description</th>
+              <th className="table-head px-5 py-4 text-left">Created By</th>
+              <th className="table-head px-5 py-4 text-left">Status</th>
+              <th className="table-head px-5 py-4 text-left">Settlement</th>
+              <th className="table-head px-5 py-4 text-left">Created</th>
+              <th className="table-head px-5 py-4 text-left">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredOrders.map(order => (
-              <tr key={order.id} onClick={() => router.push(`/dashboard/orders/view/${order.id}`)} className="hover:bg-gray-50 cursor-pointer">
-                <td className="p-4"><span className="font-mono text-sm">{order.linkId}</span></td>
-                <td className="p-4 font-semibold">${order.amountFiat} {order.currencyFiat}</td>
-                <td className="p-4 text-gray-600">{order.description || '-'}</td>
-                <td className="p-4"><span className="px-2 py-1 bg-gray-100 rounded text-xs">{order.createdBy}</span></td>
-                <td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{order.status}</span></td>
-                <td className="p-4">
-                  <select value={order.settlementStatus} onChange={(e) => updateSettlementStatus(order.id, e.target.value)} disabled={updatingStatus === order.id} className="text-xs border border-gray-300 rounded px-2 py-1">
+          <tbody className="divide-y divide-[var(--suzaa-border)]/70">
+            {filteredOrders.map((order) => (
+              <tr
+                key={order.id}
+                onClick={() => router.push(`/dashboard/orders/view/${order.id}`)}
+                className="cursor-pointer transition-colors duration-200 hover:bg-[var(--suzaa-surface-muted)]/70"
+              >
+                <td className="px-5 py-4">
+                  <span className="rounded-lg bg-[var(--suzaa-surface-muted)] px-3 py-1 font-mono text-sm font-semibold text-[var(--suzaa-midnight)]">
+                    {order.linkId}
+                  </span>
+                </td>
+                <td className="px-5 py-4 text-sm font-semibold text-[var(--suzaa-midnight)]">
+                  ${order.amountFiat} {order.currencyFiat}
+                </td>
+                <td className="px-5 py-4 text-sm text-[var(--suzaa-muted)]">
+                  {order.description || '—'}
+                </td>
+                <td className="px-5 py-4">
+                  <span className="badge">{order.createdBy}</span>
+                </td>
+                <td className="px-5 py-4">
+                  <span
+                    className={
+                      order.status === 'ACTIVE'
+                        ? 'badge-success'
+                        : 'badge text-[var(--suzaa-muted)]'
+                    }
+                  >
+                    {order.status}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <select
+                    value={order.settlementStatus}
+                    onChange={(e) => updateSettlementStatus(order.id, e.target.value)}
+                    disabled={updatingStatus === order.id}
+                    className="rounded-lg border border-[var(--suzaa-border)] bg-white px-3 py-2 text-xs font-medium text-[var(--suzaa-midnight)] focus:border-[var(--suzaa-blue)] focus:outline-none focus:ring-4 focus:ring-[var(--suzaa-blue)]/15"
+                  >
                     <option value="PENDING">Pending</option>
                     <option value="PAID">Paid</option>
                     <option value="SETTLED">Settled</option>
@@ -123,13 +182,28 @@ export default function OrdersPage() {
                     <option value="REISSUED">Re-issued</option>
                   </select>
                 </td>
-                <td className="p-4 text-sm text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
-                <td className="p-4"><a href={`http://116.203.195.248:3001/${order.linkId}`} target="_blank" className="text-blue-600 hover:underline">View</a></td>
+                <td className="px-5 py-4 text-xs text-[var(--suzaa-muted)]">
+                  {new Date(order.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-5 py-4">
+                  <a
+                    href={`http://116.203.195.248:3001/${order.linkId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+                  >
+                    View
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filteredOrders.length === 0 && <div className="text-center py-12 text-gray-500">No payment requests found</div>}
+        {filteredOrders.length === 0 && (
+          <div className="border-t border-[var(--suzaa-border)]/70 bg-[var(--suzaa-surface-muted)]/60 py-12 text-center text-sm font-medium text-[var(--suzaa-muted)]">
+            No payment requests match this filter yet.
+          </div>
+        )}
       </div>
     </div>
   );

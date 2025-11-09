@@ -67,83 +67,96 @@ export default function CreatePaymentPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <button onClick={() => router.back()} className="text-blue-600 hover:underline mb-4">← Back to Orders</button>
-        <h1 className="text-2xl font-bold text-gray-900">Create Payment Request</h1>
-        <p className="text-gray-600">Generate a new payment link for your customer</p>
-      </div>
+    <div className="space-y-6">
+      <button
+        onClick={() => router.back()}
+        className="btn-ghost text-sm font-semibold text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+      >
+        ← Back to Requests
+      </button>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-2xl">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
+      <div className="max-w-2xl space-y-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--suzaa-navy)]">
+            Create Payment Request
+          </h1>
+          <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
+            Issue a secure, time-bound link to collect payment from your customer.
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Amount (USD) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="100.00"
-              className="input"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">The amount your customer needs to pay</p>
-          </div>
+        <div className="surface-card">
+          {error && (
+            <div className="mb-6 rounded-xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-sm text-[var(--suzaa-danger)]">
+              {error}
+            </div>
+          )}
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description (Optional)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g., Invoice #1234 - Web development services"
-              className="input"
-              rows={3}
-            />
-            <p className="text-xs text-gray-500 mt-1">Help your customer identify this payment</p>
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-[var(--suzaa-midnight)]">
+                Amount (USD) *
+              </label>
+              <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                Specify the total amount due from the customer.
+              </p>
+              <input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="100.00"
+                className="input mt-3"
+                required
+              />
+            </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Expiry Time (minutes)
-            </label>
-            <input
-              type="number"
-              value={expiryMinutes}
-              onChange={(e) => setExpiryMinutes(e.target.value)}
-              placeholder="60"
-              className="input"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">How long before this payment link expires (default: 60 minutes)</p>
-          </div>
+            <div>
+              <label className="block text-sm font-semibold text-[var(--suzaa-midnight)]">
+                Description (Optional)
+              </label>
+              <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                Provide context for your customer (e.g., invoice number or services).
+              </p>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g., Invoice #1234 - Web development services"
+                className="input mt-3 min-h-[120px]"
+              />
+            </div>
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary"
-            >
-              {loading ? 'Creating...' : 'Create Payment Link'}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+            <div>
+              <label className="block text-sm font-semibold text-[var(--suzaa-midnight)]">
+                Expiry Time (minutes)
+              </label>
+              <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                Default expiry is 60 minutes. Links automatically close afterwards.
+              </p>
+              <input
+                type="number"
+                value={expiryMinutes}
+                onChange={(e) => setExpiryMinutes(e.target.value)}
+                placeholder="60"
+                className="input mt-3"
+                required
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" disabled={loading} className="btn-primary">
+                {loading ? 'Creating...' : 'Create Payment Link'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -18,9 +18,6 @@ export default function MerchantPortalPage() {
     e.preventDefault();
     setError('');
     if (!lookupNumber.trim()) return;
-    
-    // For now, just navigate to a likely URL pattern
-    // The order number needs to be padded to 4 digits
     const paddedOrder = lookupNumber.padStart(4, '0');
     const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
     router.push(`/${slug}/${today}/${paddedOrder}`);
@@ -29,13 +26,13 @@ export default function MerchantPortalPage() {
   async function handleCreatePayment(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    
+
     const amount = parseFloat(createAmount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
       setError('Please enter a valid amount');
       return;
     }
-    
+
     try {
       setLoading(true);
       const response = await fetch('http://116.203.195.248:3000/public/create-payment', {
@@ -43,16 +40,16 @@ export default function MerchantPortalPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           merchantSlug: slug,
-          amount: amount,
+          amount,
           description: createDescription || undefined,
         }),
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Failed to create payment');
       }
-      
+
       const data = await response.json();
       router.push(`/${data.data.linkId}`);
     } catch (err: any) {
@@ -63,143 +60,131 @@ export default function MerchantPortalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl p-6 text-center text-white">
-          <h1 className="text-2xl font-bold mb-1">{slug}</h1>
-          <p className="text-sm opacity-90">Payment Portal</p>
-        </div>
-
-        <div className="bg-white border-b border-gray-200 flex">
-          <button
-            onClick={() => setActiveTab('lookup')}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'lookup'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+    <div className="min-h-screen bg-[var(--suzaa-surface-subtle)] py-8 px-4">
+      <div className="mx-auto w-full max-w-md">
+        <div className="overflow-hidden rounded-3xl border border-[var(--suzaa-border)] bg-white/90 shadow-soft backdrop-blur">
+          <div
+            className="px-6 py-8 text-center"
+            style={{ background: 'linear-gradient(135deg, #0a84ff 0%, #00b8a9 100%)' }}
           >
-            Lookup Payment
-          </button>
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'create'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Create Payment
-          </button>
-        </div>
+            <p className="text-[0.65rem] uppercase tracking-[0.32em] text-white/70">Customer Portal</p>
+            <h1 className="mt-2 text-2xl font-semibold uppercase tracking-[0.18em] text-white">{slug}</h1>
+            <p className="mt-3 text-xs text-white/75">
+              Securely view or create cryptocurrency payment requests.
+            </p>
+          </div>
 
-        <div className="bg-white rounded-b-2xl shadow-lg p-6">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">{error}</p>
+          <div className="bg-white px-5 pt-5">
+            <div className="flex rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] p-1">
+              <button
+                onClick={() => setActiveTab('lookup')}
+                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === 'lookup'
+                    ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
+                    : 'text-[var(--suzaa-muted)] hover:text-[var(--suzaa-blue)]'
+                }`}
+              >
+                Lookup
+              </button>
+              <button
+                onClick={() => setActiveTab('create')}
+                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === 'create'
+                    ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
+                    : 'text-[var(--suzaa-muted)] hover:text-[var(--suzaa-blue)]'
+                }`}
+              >
+                Create
+              </button>
             </div>
-          )}
+          </div>
 
-          {activeTab === 'lookup' ? (
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Lookup Your Payment</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Enter your order number to view and complete your payment
-              </p>
+          <div className="bg-white px-6 py-6">
+            {error && (
+              <div className="mb-5 rounded-2xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-2 text-xs text-[var(--suzaa-danger)]">
+                {error}
+              </div>
+            )}
 
-              <form onSubmit={handleLookup}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Order Number
+            {activeTab === 'lookup' ? (
+              <form onSubmit={handleLookup} className="space-y-5">
+                <div className="text-center">
+                  <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Find an existing payment</h2>
+                  <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                    Enter the order number provided on your invoice.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Order number
                   </label>
                   <input
                     type="text"
                     value={lookupNumber}
                     onChange={(e) => setLookupNumber(e.target.value)}
-                    placeholder="e.g., 1, 0001, 0042"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-mono"
+                    placeholder="0042"
+                    className="input mt-2 text-center font-mono"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1 text-center">
-                    Enter the order number from your invoice
+                  <p className="mt-2 text-xs text-[var(--suzaa-muted)] text-center">
+                    Orders use 4-digit formats such as 0001 or 0023.
                   </p>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-gray-500 text-white py-3 rounded-lg font-medium hover:bg-gray-600 transition-colors"
-                >
-                  Find My Payment
+                <button type="submit" className="btn-primary w-full justify-center">
+                  Find my payment
                 </button>
               </form>
+            ) : (
+              <form onSubmit={handleCreatePayment} className="space-y-5">
+                <div className="text-center">
+                  <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Request a payment link</h2>
+                  <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                    Generate a secure link in seconds.
+                  </p>
+                </div>
 
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-xs text-blue-900 font-medium mb-2">ℹ️ How it works</p>
-                <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
-                  <li>Enter your order number above</li>
-                  <li>View your payment details and amount</li>
-                  <li>Complete payment using cryptocurrency</li>
-                </ol>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Create Payment</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Request a payment from {slug}
-              </p>
-
-              <form onSubmit={handleCreatePayment}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amount (USD) *
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Amount (USD)
                   </label>
                   <input
                     type="text"
                     value={createAmount}
                     onChange={(e) => setCreateAmount(e.target.value)}
                     placeholder="100.00"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input mt-2"
                     required
                   />
                 </div>
 
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description (Optional)
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Description (optional)
                   </label>
                   <textarea
                     value={createDescription}
                     onChange={(e) => setCreateDescription(e.target.value)}
-                    placeholder="e.g., Invoice payment for services"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
+                    placeholder="Invoice payment"
+                    className="input mt-2 min-h-[90px]"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="btn-primary w-full justify-center text-sm disabled:opacity-60"
                 >
-                  {loading ? 'Creating...' : 'Create Payment Request'}
+                  {loading ? 'Creating…' : 'Create payment request'}
                 </button>
               </form>
-
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-xs text-blue-900 font-medium mb-2">ℹ️ How it works</p>
-                <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
-                  <li>Enter the payment amount</li>
-                  <li>Add an optional description</li>
-                  <li>Get a payment link with QR code</li>
-                </ol>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        <p className="text-center mt-6 text-xs text-gray-600">
-          Powered by <strong>Suzaa</strong>
+        <p className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
         </p>
       </div>
     </div>

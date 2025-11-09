@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { adminApi } from '@/app/lib/adminApi';
 
 interface Merchant {
@@ -27,6 +28,7 @@ interface EditableMerchant {
 const tierOptions: MerchantTier[] = ['TIER_1', 'TIER_2', 'TIER_3', 'TIER_4', 'TIER_5'];
 
 export default function AdminMerchantsPage() {
+  const router = useRouter();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'suspended'>('all');
@@ -205,24 +207,29 @@ export default function AdminMerchantsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--suzaa-blue)]/30 border-t-[var(--suzaa-blue)]" />
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Merchant Management</h1>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-[var(--suzaa-navy)]">Merchant Management</h2>
+          <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
+            Adjust tiers, link quotas, and wallet limits across the network.
+          </p>
+        </div>
         <button onClick={fetchMerchants} className="btn-secondary">
-          🔄 Refresh
+          ↻ Refresh
         </button>
       </div>
 
       {(updateMessage || updateError) && (
         <div
-          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+          className={`rounded-2xl border px-4 py-3 text-sm ${
             updateError ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'
           }`}
         >
@@ -230,73 +237,72 @@ export default function AdminMerchantsPage() {
         </div>
       )}
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setFilter('all')}
-          className={filter === 'all' ? 'px-4 py-2 rounded-lg bg-purple-600 text-white' : 'px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200'}
-        >
-          All ({merchants.length})
-        </button>
-        <button
-          onClick={() => setFilter('active')}
-          className={filter === 'active' ? 'px-4 py-2 rounded-lg bg-purple-600 text-white' : 'px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200'}
-        >
-          Active ({activeCount})
-        </button>
-        <button
-          onClick={() => setFilter('suspended')}
-          className={filter === 'suspended' ? 'px-4 py-2 rounded-lg bg-purple-600 text-white' : 'px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200'}
-        >
-          Suspended ({suspendedCount})
-        </button>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: `All (${merchants.length})`, value: 'all' },
+          { label: `Active (${activeCount})`, value: 'active' },
+          { label: `Suspended (${suspendedCount})`, value: 'suspended' },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setFilter(option.value as typeof filter)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              filter === option.value
+                ? 'bg-[var(--suzaa-blue)] text-white shadow-soft'
+                : 'border border-[var(--suzaa-border)] bg-white text-[var(--suzaa-muted)] hover:border-[var(--suzaa-blue)]/50 hover:text-[var(--suzaa-blue)]'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       {filteredMerchants.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <p className="text-gray-500">No merchants found</p>
+        <div className="rounded-2xl border border-[var(--suzaa-border)] bg-white/90 py-12 text-center text-sm font-medium text-[var(--suzaa-muted)] shadow-soft">
+          No merchants match the current filter.
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="overflow-hidden rounded-2xl border border-[var(--suzaa-border)] bg-white shadow-soft">
+          <table className="w-full table-auto">
+            <thead className="bg-[var(--suzaa-surface-muted)]/60">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monthly Link Limit</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wallet Limit</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="table-head px-5 py-4 text-left">Business</th>
+                <th className="table-head px-5 py-4 text-left">Slug</th>
+                <th className="table-head px-5 py-4 text-left">Status</th>
+                <th className="table-head px-5 py-4 text-left">Tier</th>
+                <th className="table-head px-5 py-4 text-left">Monthly Link Limit</th>
+                <th className="table-head px-5 py-4 text-left">Wallet Limit</th>
+                <th className="table-head px-5 py-4 text-left">Created</th>
+                <th className="table-head px-5 py-4 text-left">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-[var(--suzaa-border)]/70">
               {filteredMerchants.map((merchant) => (
-                <tr key={merchant.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr
+                  key={merchant.id}
+                  onClick={() => router.push(`/admin/dashboard/merchants/${merchant.id}`)}
+                  className="cursor-pointer transition-colors duration-200 hover:bg-[var(--suzaa-surface-muted)]/70"
+                >
+                  <td className="px-5 py-4 text-sm font-semibold text-[var(--suzaa-midnight)]">
                     {merchant.businessName}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {merchant.email}
+                  <td className="px-5 py-4 text-sm text-[var(--suzaa-muted)]">
+                    <span className="rounded-lg bg-[var(--suzaa-surface-muted)] px-3 py-1 font-mono text-xs font-semibold text-[var(--suzaa-midnight)]">
+                      {merchant.slug}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                    {merchant.slug}
+                  <td className="px-5 py-4">
+                    <span
+                      className={`badge ${
+                        merchant.suspendedAt ? 'badge-danger' : 'badge-success'
+                      }`}
+                    >
+                      {merchant.suspendedAt ? 'Suspended' : 'Active'}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {merchant.suspendedAt ? (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                        Suspended
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        Active
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-5 py-4 text-sm text-[var(--suzaa-midnight)]">
                     <select
-                      className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      className="rounded-lg border border-[var(--suzaa-border)] bg-white px-3 py-2 text-xs font-medium text-[var(--suzaa-midnight)] focus:border-[var(--suzaa-blue)] focus:outline-none focus:ring-4 focus:ring-[var(--suzaa-blue)]/15"
                       value={editedMerchants[merchant.id]?.tier ?? merchant.tier}
                       onChange={(event) => handleTierChange(merchant.id, event.target.value as MerchantTier)}
                     >
@@ -307,12 +313,12 @@ export default function AdminMerchantsPage() {
                       ))}
                     </select>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-5 py-4 text-sm text-[var(--suzaa-midnight)]">
                     <input
                       type="text"
                       inputMode="numeric"
                       pattern="\d*"
-                      className="w-24 rounded-md border border-gray-300 px-3 py-1 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-24 rounded-lg border border-[var(--suzaa-border)] bg-white px-3 py-2 text-xs font-medium text-[var(--suzaa-midnight)] focus:border-[var(--suzaa-blue)] focus:outline-none focus:ring-4 focus:ring-[var(--suzaa-blue)]/15"
                       value={
                         editedMerchants[merchant.id]?.paymentLinkMonthlyLimit ??
                         merchant.paymentLinkMonthlyLimit.toString()
@@ -320,12 +326,12 @@ export default function AdminMerchantsPage() {
                       onChange={(event) => handleLimitChange(merchant.id, event.target.value)}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-5 py-4 text-sm text-[var(--suzaa-midnight)]">
                     <input
                       type="text"
                       inputMode="numeric"
                       pattern="\d*"
-                      className="w-24 rounded-md border border-gray-300 px-3 py-1 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      className="w-24 rounded-lg border border-[var(--suzaa-border)] bg-white px-3 py-2 text-xs font-medium text-[var(--suzaa-midnight)] focus:border-[var(--suzaa-blue)] focus:outline-none focus:ring-4 focus:ring-[var(--suzaa-blue)]/15"
                       value={
                         editedMerchants[merchant.id]?.walletLimit ??
                         merchant.walletLimit?.toString() ??
@@ -334,38 +340,17 @@ export default function AdminMerchantsPage() {
                       onChange={(event) => handleWalletLimitChange(merchant.id, event.target.value)}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-5 py-4 text-xs text-[var(--suzaa-muted)]">
                     {new Date(merchant.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex flex-wrap gap-2">
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
                       <button
                         onClick={() => handleUpdate(merchant.id)}
                         disabled={savingId === merchant.id}
-                        className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="btn-primary px-4 py-2 text-xs disabled:opacity-60"
                       >
-                        {savingId === merchant.id ? 'Saving...' : 'Save'}
-                      </button>
-                      {merchant.suspendedAt ? (
-                        <button
-                          onClick={() => handleUnsuspend(merchant.id)}
-                          className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                        >
-                          Unsuspend
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSuspend(merchant.id)}
-                          className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
-                        >
-                          Suspend
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(merchant.id)}
-                        className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                      >
-                        Delete
+                        {savingId === merchant.id ? 'Saving…' : 'Save'}
                       </button>
                     </div>
                   </td>
