@@ -25,7 +25,13 @@ adminApi.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      console.error('Admin API Error:', error.response.status, error.response.data);
+      const { status, data } = error.response;
+      const logPayload = ['Admin API Error:', status, data];
+      if (status >= 500) {
+        console.error(...logPayload);
+      } else {
+        console.warn(...logPayload);
+      }
     }
     return Promise.reject(error);
   }

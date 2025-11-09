@@ -11,12 +11,29 @@ interface Merchant {
   suspendedAt: string | null;
   emailVerified: boolean;
   createdAt: string;
+  paymentLinkMonthlyLimit: number;
+  tier: MerchantTier;
+  walletLimit: number;
 }
+
+type MerchantTier = 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4' | 'TIER_5';
+
+interface EditableMerchant {
+  paymentLinkMonthlyLimit: string;
+  tier: MerchantTier;
+  walletLimit: string;
+}
+
+const tierOptions: MerchantTier[] = ['TIER_1', 'TIER_2', 'TIER_3', 'TIER_4', 'TIER_5'];
 
 export default function AdminMerchantsPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [editedMerchants, setEditedMerchants] = useState<Record<string, EditableMerchant>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [updateMessage, setUpdateMessage] = useState('');
+  const [updateError, setUpdateError] = useState('');
 
   useEffect(() => {
     fetchMerchants();
@@ -26,11 +43,125 @@ export default function AdminMerchantsPage() {
     try {
       setLoading(true);
       const response = await adminApi.get('/admin/merchants');
-      setMerchants(response.data.data || []);
+      const data: Merchant[] = response.data.data || [];
+      setMerchants(data);
+      const initialState: Record<string, EditableMerchant> = {};
+      data.forEach((merchant) => {
+        initialState[merchant.id] = {
+          paymentLinkMonthlyLimit: merchant.paymentLinkMonthlyLimit.toString(),
+          tier: merchant.tier ?? 'TIER_1',
+          walletLimit: merchant.walletLimit?.toString() ?? '0',
+        };
+      });
+      setEditedMerchants(initialState);
     } catch (error) {
       console.error('Failed to fetch merchants:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleLimitChange(id: string, value: string) {
+    if (!/^\d*$/.test(value)) {
+      return;
+    }
+
+    setEditedMerchants((prev) => ({
+      ...prev,
+      [id]: {
+        paymentLinkMonthlyLimit: value,
+        tier: prev[id]?.tier ?? merchants.find((merchant) => merchant.id === id)?.tier ?? 'TIER_1',
+        walletLimit:
+          prev[id]?.walletLimit ??
+          merchants.find((merchant) => merchant.id === id)?.walletLimit?.toString() ??
+          '0',
+      },
+    }));
+  }
+
+  function handleTierChange(id: string, value: MerchantTier) {
+    setEditedMerchants((prev) => ({
+      ...prev,
+      [id]: {
+        paymentLinkMonthlyLimit:
+          prev[id]?.paymentLinkMonthlyLimit ??
+          merchants.find((merchant) => merchant.id === id)?.paymentLinkMonthlyLimit.toString() ??
+          '0',
+        tier: value,
+        walletLimit:
+          prev[id]?.walletLimit ??
+          merchants.find((merchant) => merchant.id === id)?.walletLimit?.toString() ??
+          '0',
+      },
+    }));
+  }
+
+  function handleWalletLimitChange(id: string, value: string) {
+    if (!/^\d*$/.test(value)) {
+      return;
+    }
+
+    setEditedMerchants((prev) => ({
+      ...prev,
+      [id]: {
+        paymentLinkMonthlyLimit:
+          prev[id]?.paymentLinkMonthlyLimit ??
+          merchants.find((merchant) => merchant.id === id)?.paymentLinkMonthlyLimit.toString() ??
+          '0',
+        tier: prev[id]?.tier ?? merchants.find((merchant) => merchant.id === id)?.tier ?? 'TIER_1',
+        walletLimit: value,
+      },
+    }));
+  }
+
+  async function handleUpdate(id: string) {
+    const edits = editedMerchants[id];
+    if (!edits) return;
+
+    const trimmedLimit = edits.paymentLinkMonthlyLimit.trim();
+    if (trimmedLimit === '') {
+      setUpdateError('Monthly limit is required');
+      setUpdateMessage('');
+      return;
+    }
+
+    const numericLimit = Number(trimmedLimit);
+    if (!Number.isInteger(numericLimit) || numericLimit < 0) {
+      setUpdateError('Monthly limit must be a non-negative integer');
+      setUpdateMessage('');
+      return;
+    }
+
+    const trimmedWalletLimit = (edits.walletLimit ?? '').trim();
+    if (trimmedWalletLimit === '') {
+      setUpdateError('Wallet limit is required');
+      setUpdateMessage('');
+      return;
+    }
+
+    const numericWalletLimit = Number(trimmedWalletLimit);
+    if (!Number.isInteger(numericWalletLimit) || numericWalletLimit < 0) {
+      setUpdateError('Wallet limit must be a non-negative integer');
+      setUpdateMessage('');
+      return;
+    }
+
+    setSavingId(id);
+    setUpdateError('');
+    setUpdateMessage('');
+
+    try {
+      await adminApi.patch(`/admin/merchants/${id}`, {
+        paymentLinkMonthlyLimit: numericLimit,
+        tier: edits.tier,
+        walletLimit: numericWalletLimit,
+      });
+      setUpdateMessage('Merchant settings updated successfully');
+      await fetchMerchants();
+    } catch (error: any) {
+      setUpdateError(error.response?.data?.error || 'Failed to update merchant');
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -89,6 +220,16 @@ export default function AdminMerchantsPage() {
         </button>
       </div>
 
+      {(updateMessage || updateError) && (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            updateError ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'
+          }`}
+        >
+          {updateError || updateMessage}
+        </div>
+      )}
+
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setFilter('all')}
@@ -123,6 +264,9 @@ export default function AdminMerchantsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monthly Link Limit</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Wallet Limit</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
@@ -150,11 +294,58 @@ export default function AdminMerchantsPage() {
                       </span>
                     )}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <select
+                      className="rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      value={editedMerchants[merchant.id]?.tier ?? merchant.tier}
+                      onChange={(event) => handleTierChange(merchant.id, event.target.value as MerchantTier)}
+                    >
+                      {tierOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option.replace('TIER_', 'Tier ')}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d*"
+                      className="w-24 rounded-md border border-gray-300 px-3 py-1 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      value={
+                        editedMerchants[merchant.id]?.paymentLinkMonthlyLimit ??
+                        merchant.paymentLinkMonthlyLimit.toString()
+                      }
+                      onChange={(event) => handleLimitChange(merchant.id, event.target.value)}
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d*"
+                      className="w-24 rounded-md border border-gray-300 px-3 py-1 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      value={
+                        editedMerchants[merchant.id]?.walletLimit ??
+                        merchant.walletLimit?.toString() ??
+                        '0'
+                      }
+                      onChange={(event) => handleWalletLimitChange(merchant.id, event.target.value)}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(merchant.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleUpdate(merchant.id)}
+                        disabled={savingId === merchant.id}
+                        className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingId === merchant.id ? 'Saving...' : 'Save'}
+                      </button>
                       {merchant.suspendedAt ? (
                         <button
                           onClick={() => handleUnsuspend(merchant.id)}
