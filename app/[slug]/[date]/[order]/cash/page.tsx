@@ -191,10 +191,8 @@ export default function CashPaymentPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-muted">
-            Powered by <span className="font-semibold text-dark">SUZAA</span>
-          </p>
+        <div className="mt-8 border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
         </div>
       </div>
     </div>

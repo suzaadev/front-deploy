@@ -1,18 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 export default function MerchantPortalPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-  const [activeTab, setActiveTab] = useState<'lookup' | 'create'>('lookup');
+  const fallbackName = slug
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+  const [merchantName, setMerchantName] = useState(fallbackName);
+  const [activeTab, setActiveTab] = useState<'lookup' | 'create'>('create');
   const [lookupNumber, setLookupNumber] = useState('');
   const [createAmount, setCreateAmount] = useState('');
   const [createDescription, setCreateDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchMerchant() {
+      try {
+        const response = await fetch(`http://116.203.195.248:3000/public/wallets/${slug}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const name = data?.data?.merchant?.name;
+        if (name) {
+          setMerchantName(name);
+        }
+      } catch (err) {
+        console.warn('Failed to load merchant name', err);
+      }
+    }
+
+    fetchMerchant();
+  }, [slug]);
 
   async function handleLookup(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +91,7 @@ export default function MerchantPortalPage() {
             style={{ background: 'linear-gradient(135deg, #0a84ff 0%, #00b8a9 100%)' }}
           >
             <p className="text-[0.65rem] uppercase tracking-[0.32em] text-white/70">Customer Portal</p>
-            <h1 className="mt-2 text-2xl font-semibold uppercase tracking-[0.18em] text-white">{slug}</h1>
+            <h1 className="mt-2 text-2xl font-semibold uppercase tracking-[0.18em] text-white">{merchantName}</h1>
             <p className="mt-3 text-xs text-white/75">
               Securely view or create cryptocurrency payment requests.
             </p>
@@ -76,16 +99,6 @@ export default function MerchantPortalPage() {
 
           <div className="bg-white px-5 pt-5">
             <div className="flex rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] p-1">
-              <button
-                onClick={() => setActiveTab('lookup')}
-                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
-                  activeTab === 'lookup'
-                    ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
-                    : 'text-[var(--suzaa-muted)] hover:text-[var(--suzaa-blue)]'
-                }`}
-              >
-                Lookup
-              </button>
               <button
                 onClick={() => setActiveTab('create')}
                 className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
@@ -95,6 +108,16 @@ export default function MerchantPortalPage() {
                 }`}
               >
                 Create
+              </button>
+              <button
+                onClick={() => setActiveTab('lookup')}
+                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                  activeTab === 'lookup'
+                    ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
+                    : 'text-[var(--suzaa-muted)] hover:text-[var(--suzaa-blue)]'
+                }`}
+              >
+                Lookup
               </button>
             </div>
           </div>
@@ -106,37 +129,7 @@ export default function MerchantPortalPage() {
               </div>
             )}
 
-            {activeTab === 'lookup' ? (
-              <form onSubmit={handleLookup} className="space-y-5">
-                <div className="text-center">
-                  <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Find an existing payment</h2>
-                  <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
-                    Enter the order number provided on your invoice.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
-                    Order number
-                  </label>
-                  <input
-                    type="text"
-                    value={lookupNumber}
-                    onChange={(e) => setLookupNumber(e.target.value)}
-                    placeholder="0042"
-                    className="input mt-2 text-center font-mono"
-                    required
-                  />
-                  <p className="mt-2 text-xs text-[var(--suzaa-muted)] text-center">
-                    Orders use 4-digit formats such as 0001 or 0023.
-                  </p>
-                </div>
-
-                <button type="submit" className="btn-primary w-full justify-center">
-                  Find my payment
-                </button>
-              </form>
-            ) : (
+            {activeTab === 'create' ? (
               <form onSubmit={handleCreatePayment} className="space-y-5">
                 <div className="text-center">
                   <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Request a payment link</h2>
@@ -179,13 +172,42 @@ export default function MerchantPortalPage() {
                   {loading ? 'Creating…' : 'Create payment request'}
                 </button>
               </form>
+            ) : (
+              <form onSubmit={handleLookup} className="space-y-5">
+                <div className="text-center">
+                  <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">Find an existing payment</h2>
+                  <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                    Enter the order number provided on your invoice.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Order number
+                  </label>
+                  <input
+                    type="text"
+                    value={lookupNumber}
+                    onChange={(e) => setLookupNumber(e.target.value)}
+                    placeholder="0042"
+                    className="input mt-2 text-center font-mono"
+                    required
+                  />
+                  <p className="mt-2 text-xs text-[var(--suzaa-muted)] text-center">
+                    Orders use 4-digit formats such as 0001 or 0023.
+                  </p>
+                </div>
+
+                <button type="submit" className="btn-primary w-full justify-center">
+                  Find my payment
+                </button>
+              </form>
             )}
           </div>
+          <div className="border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+            Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
+          </div>
         </div>
-
-        <p className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
-          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
-        </p>
       </div>
     </div>
   );

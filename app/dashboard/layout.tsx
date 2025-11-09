@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { LayoutDashboard, CreditCard, Wallet, Plug, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Wallet, Puzzle, Settings, LogOut } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -17,23 +17,14 @@ export default function DashboardLayout({
   }
 
   const navigation = [
-    { name: 'Overview', href: '/dashboard/overview', icon: LayoutDashboard },
-    { name: 'Payment Requests', href: '/dashboard/orders', icon: CreditCard },
-    { name: 'Wallets', href: '/dashboard/wallets', icon: Wallet },
-    { name: 'Plugins', href: '/dashboard/plugins', icon: Plug },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+    { name: 'Overview', href: '/dashboard/overview', icon: LayoutDashboard, description: 'Snapshot of your recent activity across all settlement channels.' },
+    { name: 'Payment Requests', href: '/dashboard/orders', icon: CreditCard, description: 'Generate, track, and reconcile customer payment links with live settlement status.' },
+    { name: 'Wallets', href: '/dashboard/wallets', icon: Wallet, description: 'Manage your cryptocurrency receiving addresses and monitor balances.' },
+    { name: 'Extensions', href: '/dashboard/extensions', icon: Puzzle, description: 'Discover integrations and modules that expand settlement, automation, and analytics.' },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings, description: 'Configure your merchant profile, security, and payment preferences.' },
   ];
 
-  const activeNav =
-    navigation.find((item) => pathname?.startsWith(item.href)) ?? navigation[0];
-
-  const descriptions: Record<string, string> = {
-    Overview: 'Monitor settlement health, payment velocity, and account activity.',
-    'Payment Requests': 'Create, track, and reconcile payment links in real time.',
-    Wallets: 'Manage settlement wallets and destinations for your payouts.',
-    Plugins: 'Activate blockchain plugins and expand your settlement rails.',
-    Settings: 'Configure merchant preferences, notifications, and members.',
-  };
+  const activeNav = navigation.find((item) => pathname?.startsWith(item.href)) ?? navigation[0];
 
   if (pathname === '/dashboard') {
     return <>{children}</>;
@@ -43,7 +34,7 @@ export default function DashboardLayout({
     <div className="flex min-h-screen bg-[var(--suzaa-surface-subtle)]">
       <aside className="nav-rail px-5 pb-8 pt-10">
         <div className="mb-12 flex items-center gap-3 px-1">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--suzaa-blue)] text-lg font-semibold text-white shadow-soft">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--suzaa-navy)] text-lg font-semibold text-white shadow-soft">
             Σ
           </div>
           <div>
@@ -60,14 +51,14 @@ export default function DashboardLayout({
             const Icon = item.icon;
 
             return (
-              <button
+              <a
                 key={item.name}
-                onClick={() => router.push(item.href)}
+                href={item.href}
                 className={isActive ? 'nav-link-active' : 'nav-link'}
               >
                 <Icon className="h-5 w-5" />
-                <span>{item.name}</span>
-              </button>
+                {item.name}
+              </a>
             );
           })}
         </nav>
@@ -77,11 +68,11 @@ export default function DashboardLayout({
             Session
           </p>
           <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
-            Sign out securely to protect your merchant workspace.
+            Sign out securely when leaving the control centre.
           </p>
           <button
             onClick={handleLogout}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-[rgba(11,17,31,0.04)] px-4 py-2 text-sm font-semibold text-[var(--suzaa-muted-dark)] transition-all duration-200 hover:border-[var(--suzaa-border)] hover:bg-[rgba(11,17,31,0.08)]"
+            className="btn-ghost mt-4 w-full justify-center border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)]"
           >
             <LogOut className="h-4 w-4" />
             Logout
@@ -89,28 +80,22 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      <div className="relative flex-1 overflow-hidden">
-        <div className="gradient-shell pointer-events-none absolute inset-x-0 top-0 h-56 opacity-95" />
-        <div className="relative z-10 flex h-full flex-col">
-          <header className="px-10 pt-16 text-white">
-            <div className="flex flex-wrap items-baseline gap-2 text-sm leading-tight text-white/70 md:text-base">
-              <span className="font-semibold text-white">Merchant Dashboard</span>
-              <span className="opacity-50">|</span>
-              <span className="font-semibold text-white">{activeNav.name}</span>
-              <span className="opacity-50">|</span>
-              <span className="max-w-xl text-white/70">
-                {descriptions[activeNav.name] ??
-                  'Operate with confidence. Manage payments, wallets, and plugins from a single secure workspace.'}
-              </span>
+      <div className="flex-1 overflow-hidden">
+        <header className="sticky top-0 z-10 border-b border-[var(--suzaa-border)] bg-white/95 px-10 py-8 backdrop-blur">
+          <p className="text-xs uppercase tracking-[0.32em] text-[var(--suzaa-muted)]">Merchant Dashboard</p>
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold text-[var(--suzaa-navy)]">{activeNav.name}</h1>
+              <p className="mt-2 max-w-2xl text-sm text-[var(--suzaa-muted)]">{activeNav.description}</p>
             </div>
-          </header>
+          </div>
+        </header>
 
-          <main className="relative -mt-10 flex-1 overflow-y-auto px-6 pb-16">
-            <div className="mx-auto w-full max-w-6xl space-y-10 rounded-3xl bg-white/85 p-8 shadow-[0_50px_120px_-60px_rgba(11,17,31,0.38)] backdrop-blur">
-              {children}
-            </div>
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto px-6 pb-12 pt-10">
+          <div className="mx-auto w-full max-w-6xl space-y-10">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

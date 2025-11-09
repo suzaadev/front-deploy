@@ -168,11 +168,10 @@ export default function PublicWalletsPage() {
               Added: {data.wallets.length} wallet{data.wallets.length === 1 ? '' : 's'}
             </div>
           </div>
+          <div className="border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+            Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
+          </div>
         </div>
-
-        <p className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
-          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
-        </p>
       </div>
     </div>
   );

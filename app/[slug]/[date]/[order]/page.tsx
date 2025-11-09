@@ -24,9 +24,9 @@ export default function ChainSelectionPage() {
   const order = params.order as string;
   const linkId = `${slug}/${date}/${order}`;
 
-  const [payment, setPayment] = useState<PaymentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [payment, setPayment] = useState<any>(null);
 
   useEffect(() => {
     fetchPayment();
@@ -105,7 +105,14 @@ export default function ChainSelectionPage() {
           <div className="space-y-6 bg-white px-6 py-6">
             {isExpired ? (
               <div className="rounded-2xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-center text-xs text-[var(--suzaa-danger)]">
-                This payment link has expired. Please contact the merchant for a new request.
+                This payment link has expired.{' '}
+                <a
+                  href={`/${slug}?tab=create`}
+                  className="font-semibold text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+                >
+                  Click here to create a new payment request
+                </a>{' '}
+                or contact the merchant for assistance.
               </div>
             ) : payment.availableOptions && payment.availableOptions.length === 0 ? (
               <div className="rounded-2xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-center text-xs text-[var(--suzaa-warning)]">
@@ -160,14 +167,13 @@ export default function ChainSelectionPage() {
             )}
 
             <div className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
-              Expires {new Date(payment.expiresAt).toLocaleString()} · Secured by Suzaa
+              Expires {new Date(payment.expiresAt).toLocaleString()}
             </div>
           </div>
+          <div className="border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+            Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
+          </div>
         </div>
-
-        <p className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
-          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
-        </p>
       </div>
     </div>
   );

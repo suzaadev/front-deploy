@@ -49,11 +49,19 @@ export default function OverviewPage() {
 
   const content = (
     <div className="space-y-10">
-      <div>
-        <h2 className="text-2xl font-semibold text-[var(--suzaa-navy)]">Payment Intelligence</h2>
-        <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
-          Snapshot of your recent activity across all settlement channels.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-[var(--suzaa-navy)]">Payment Intelligence</h2>
+          <p className="mt-2 text-sm text-[var(--suzaa-muted)]">
+            Snapshot of your recent activity across all settlement channels.
+          </p>
+        </div>
+        <button
+          onClick={() => router.push('/dashboard/orders/create')}
+          className="btn-primary inline-flex items-center justify-center gap-2"
+        >
+          + Create payment
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
