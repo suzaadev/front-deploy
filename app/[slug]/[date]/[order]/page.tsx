@@ -1,4 +1,5 @@
 'use client';
+import { PUBLIC_API_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -36,7 +37,7 @@ export default function ChainSelectionPage() {
   async function fetchPayment() {
     try {
       setLoading(true);
-      const response = await fetch(`http://116.203.195.248:3000/public/payment/${linkId}`);
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/public/payment/${linkId}`);
       if (!response.ok) throw new Error('Payment not found');
       const data = await response.json();
       const paymentData = data.data;
@@ -128,7 +129,7 @@ export default function ChainSelectionPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {payment.availableOptions.map((option) => (
+                  {payment.availableOptions.map((option: any) => (
                     <button
                       key={`${option.network}-${option.token}`}
                       onClick={() => handleOptionSelect(option.network, option.token)}

@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/app/lib/api';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 type Mode = 'login' | 'register' | 'verify-login' | 'verify-register';
 
 export default function MerchantAuthPage() {
   const router = useRouter();
+  const { supabase, refreshMerchant } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [businessName, setBusinessName] = useState('');
@@ -23,11 +25,15 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      await api.post('/auth/register', { email, businessName });
+      const { error: supabaseError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true }
+      });
+      if (supabaseError) throw supabaseError;
       setMessage('Check your email for the verification PIN!');
       setMode('verify-register');
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Registration failed');
+      setError(error?.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -40,11 +46,15 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      await api.post('/auth/login', { email });
+      const { error: supabaseError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false }
+      });
+      if (supabaseError) throw supabaseError;
       setMessage('Check your email for the login PIN!');
       setMode('verify-login');
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Login failed');
+      setError(error?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -56,12 +66,22 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/verify', { email, pin });
-      const token = response.data.data.token;
-      localStorage.setItem('token', token);
+      const { error: supabaseError } = await supabase.auth.verifyOtp({
+        email,
+        token: pin,
+        type: mode === 'verify-register' ? 'signup' : 'email'
+      });
+      if (supabaseError) throw supabaseError;
+
+      if (mode === 'verify-register') {
+        await api.post('/auth/bootstrap', { businessName });
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await refreshMerchant();
       router.push('/dashboard/overview');
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Verification failed');
+      setError(error?.message || error?.response?.data?.error || 'Verification failed');
     } finally {
       setLoading(false);
     }
@@ -161,7 +181,7 @@ export default function MerchantAuthPage() {
                     required
                   />
                   <p className="mt-2 text-xs text-[var(--suzaa-muted)]">
-                    We’ll send a login PIN to this address.
+                    We'll send a login PIN to this address.
                   </p>
                 </div>
 

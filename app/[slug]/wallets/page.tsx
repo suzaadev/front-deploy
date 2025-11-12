@@ -1,4 +1,5 @@
 'use client';
+import { PUBLIC_API_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';

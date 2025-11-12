@@ -19,12 +19,6 @@ export default function OverviewPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/dashboard');
-      return;
-    }
-    
     fetchData();
   }, []);
 

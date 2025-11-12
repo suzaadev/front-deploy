@@ -1,6 +1,16 @@
 import axios from 'axios';
+import { createClient } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
+export interface ApiError {
+  status?: number;
+  message?: string;
+  payload?: {
+    error?: string;
+    [key: string]: any;
+  };
+}
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -9,12 +19,13 @@ export const api = axios.create({
   },
 });
 
-// Request interceptor
-api.interceptors.request.use((config) => {
+// Request interceptor - use Supabase session token
+api.interceptors.request.use(async (config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
   }
   return config;
@@ -24,6 +35,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const apiError: ApiError = {
+      status: error.response?.status,
+      message: error.message,
+      payload: error.response?.data,
+    };
+
     if (error.response) {
       const { status, data } = error.response;
       const logPayload = ['API Error:', status, data];
@@ -37,6 +54,6 @@ api.interceptors.response.use(
     } else {
       console.error('Error:', error.message);
     }
-    return Promise.reject(error);
+    return Promise.reject(apiError);
   }
 );

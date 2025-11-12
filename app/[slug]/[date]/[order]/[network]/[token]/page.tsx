@@ -1,4 +1,5 @@
 'use client';
+import { PUBLIC_API_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -62,7 +63,7 @@ export default function PublicPaymentPage() {
   async function fetchPayment() {
     try {
       setLoading(true);
-      const response = await fetch(`http://116.203.195.248:3000/public/payment/${linkId}`);
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/public/payment/${linkId}`);
       if (!response.ok) throw new Error('Payment not found');
       const data = await response.json();
       setPayment(data.data);

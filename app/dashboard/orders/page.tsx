@@ -1,4 +1,5 @@
 'use client';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -27,11 +28,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/dashboard');
-      return;
-    }
     fetchOrders();
   }, []);
 

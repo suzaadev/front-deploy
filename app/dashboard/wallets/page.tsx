@@ -40,11 +40,6 @@ export default function WalletsPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/dashboard');
-      return;
-    }
     
     fetchWallets();
   }, []);

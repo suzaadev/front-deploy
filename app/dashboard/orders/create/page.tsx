@@ -1,4 +1,5 @@
 'use client';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -67,7 +68,7 @@ export default function CreatePaymentPage() {
         throw new Error('No linkId in response');
       }
 
-      const paymentUrl = 'http://116.203.195.248:3001/' + linkId;
+      const paymentUrl = `${PAYMENT_PORTAL_BASE_URL}/${linkId}`;
       
       // Try to copy to clipboard (only works on HTTPS)
       try {

@@ -1,4 +1,5 @@
 'use client';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -60,7 +61,7 @@ export default function PaymentRequestDetailPage() {
 
   function copyPaymentLink() {
     if (!payment) return;
-    const url = 'http://116.203.195.248:3001/' + payment.linkId;
+    const url = `${PAYMENT_PORTAL_BASE_URL}/${payment.linkId}`;
     try {
       navigator.clipboard.writeText(url);
       setCopied(true);
@@ -80,7 +81,7 @@ export default function PaymentRequestDetailPage() {
 
   if (!payment) return null;
 
-  const paymentUrl = 'http://116.203.195.248:3001/' + payment.linkId;
+  const paymentUrl = `${PAYMENT_PORTAL_BASE_URL}/${payment.linkId}`;
   const isExpired = new Date() > new Date(payment.expiresAt);
   const timeRemaining = isExpired ? 'Expired' : getTimeRemaining(payment.expiresAt);
 

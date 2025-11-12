@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/app/lib/api';
+import { api, type ApiError } from '@/app/lib/api';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 interface Settings {
   businessName: string;
@@ -22,37 +24,40 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const { user, merchant, loading: authLoading, merchantLoading } = useAuth();
+  const canManage = useMemo(
+    () => Boolean(!authLoading && !merchantLoading && user && merchant),
+    [authLoading, merchantLoading, user, merchant],
+  );
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!authLoading && !user) {
       router.push('/dashboard');
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!canManage) {
+      if (!merchantLoading && merchant === null) {
+        setLoading(false);
+      }
       return;
     }
-    fetchSettings();
-  }, []);
 
-  async function fetchSettings() {
-    try {
-      setLoading(true);
-      const response = await api.get('/merchants/me');
-      const data = response.data.data;
-      if (data) {
-        setSettings({
-          ...data,
-          defaultPaymentExpiryMinutes: data.defaultPaymentExpiryMinutes ?? 60,
-        });
-      }
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        router.push('/dashboard');
-      }
-    } finally {
-      setLoading(false);
+    if (merchant) {
+      setSettings({
+        businessName: merchant.businessName,
+        email: merchant.email,
+        slug: merchant.slug,
+        defaultCurrency: merchant.defaultCurrency,
+        timezone: merchant.timezone,
+        allowUnsolicitedPayments: merchant.allowUnsolicitedPayments,
+        maxBuyerOrdersPerHour: merchant.maxBuyerOrdersPerHour,
+        defaultPaymentExpiryMinutes: merchant.defaultPaymentExpiryMinutes ?? 60,
+      });
     }
-  }
+    setLoading(false);
+  }, [canManage, merchant, merchantLoading]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -71,8 +76,9 @@ export default function SettingsPage() {
       });
       setSuccess('Settings saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to save settings');
+    } catch (error) {
+      const apiError = error as ApiError;
+      setError(apiError?.payload?.error || apiError?.message || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -110,9 +116,11 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Merchant Slug</label>
               <div className="flex items-center gap-2">
                 <input type="text" value={settings.slug} readOnly className="input bg-gray-50 cursor-not-allowed flex-1" />
-                <a href={`http://116.203.195.248:3001/${settings.slug}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">View Portal</a>
+                <a href={`${PAYMENT_PORTAL_BASE_URL}/${settings.slug}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">View Portal</a>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Public portal: http://116.203.195.248:3001/{settings.slug}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Public portal: {PAYMENT_PORTAL_BASE_URL}/{settings.slug}
+              </p>
             </div>
           </div>
 

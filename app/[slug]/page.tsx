@@ -1,4 +1,5 @@
 'use client';
+import { PUBLIC_API_BASE_URL } from '@/app/lib/config';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -23,7 +24,7 @@ export default function MerchantPortalPage() {
   useEffect(() => {
     async function fetchMerchant() {
       try {
-        const response = await fetch(`http://116.203.195.248:3000/public/wallets/${slug}`);
+        const response = await fetch(`${PUBLIC_API_BASE_URL}/public/wallets/${slug}`);
         if (!response.ok) return;
         const data = await response.json();
         const name = data?.data?.merchant?.name;
@@ -66,7 +67,7 @@ export default function MerchantPortalPage() {
 
     try {
       setLoading(true);
-      const response = await fetch('http://116.203.195.248:3000/public/create-payment', {
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/public/create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
