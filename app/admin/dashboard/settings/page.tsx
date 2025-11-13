@@ -2,24 +2,31 @@
 
 import { useEffect, useState } from 'react';
 
+interface AdminPayload {
+  adminId?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
 export default function AdminSettingsPage() {
-  const [admin, setAdmin] = useState<any>(null);
+  const [admin, setAdmin] = useState<AdminPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAdminInfo();
   }, []);
 
-  async function fetchAdminInfo() {
+  function fetchAdminInfo() {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adminToken');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(token.split('.')[1] ?? ''));
         setAdmin(payload);
       }
     } catch (error) {
-      console.error('Failed to fetch admin info:', error);
+      console.error('Failed to decode admin token:', error);
+      setAdmin(null);
     } finally {
       setLoading(false);
     }
@@ -27,80 +34,111 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[var(--suzaa-blue)]" />
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Admin Settings</h1>
+    <div className="space-y-8">
+      <div className="surface-card space-y-4">
+        <h2 className="text-2xl font-semibold text-[var(--suzaa-navy)]">Admin Settings</h2>
+        <p className="text-sm text-[var(--suzaa-muted)]">
+          Manage your super admin profile and review security status.
+        </p>
+      </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Account Information</h2>
-        
-        <div className="space-y-4">
+      <div className="surface-card space-y-6">
+        <div>
+          <h3 className="text-xl font-semibold text-[var(--suzaa-midnight)]">Account Information</h3>
+          <p className="text-sm text-[var(--suzaa-muted)]">
+            Details extracted from your secure super admin session.
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <p className="text-gray-900">{admin?.email || 'N/A'}</p>
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
+              Email
+            </label>
+            <p className="mt-2 text-sm font-medium text-[var(--suzaa-midnight)]">
+              {admin?.email ?? 'Unknown'}
+            </p>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <span className="px-3 py-1 text-sm bg-purple-100 text-purple-800 rounded-full">
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
+              Role
+            </label>
+            <span className="mt-2 inline-flex items-center gap-2 rounded-full bg-[var(--suzaa-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--suzaa-midnight)]">
               Super Admin
             </span>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Admin ID</label>
-            <p className="text-gray-500 text-sm font-mono">{admin?.adminId || 'N/A'}</p>
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
+              Admin ID
+            </label>
+            <p className="mt-2 font-mono text-xs text-[var(--suzaa-muted)]">
+              {admin?.adminId ?? 'N/A'}
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
+              Last Token Refresh
+            </label>
+            <p className="mt-2 text-sm text-[var(--suzaa-muted)]">{new Date().toLocaleString()}</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Platform Settings</h2>
-        
-        <div className="space-y-4">
+      <div className="surface-card space-y-6">
+        <div>
+          <h3 className="text-xl font-semibold text-[var(--suzaa-midnight)]">Platform Status</h3>
+          <p className="text-sm text-[var(--suzaa-muted)]">
+            Snapshot of operational readiness and current release markers.
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Platform Status
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
+              Platform Health
             </label>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-gray-700">Operational</span>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-sm font-semibold text-emerald-600">Operational</span>
             </div>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
               System Version
             </label>
-            <p className="text-gray-700">SUZAA v1.0.0</p>
+            <p className="mt-2 text-sm font-medium text-[var(--suzaa-midnight)]">SUZAA v1.0.0</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Security</h2>
-        
-        <div className="space-y-4">
+      <div className="surface-card space-y-6">
+        <div>
+          <h3 className="text-xl font-semibold text-[var(--suzaa-midnight)]">Security</h3>
+          <p className="text-sm text-[var(--suzaa-muted)]">
+            Enforcement of privileged access and recent activity.
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
               Two-Factor Authentication
             </label>
-            <span className="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-full">
+            <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
               Enabled (PIN-based)
             </span>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Last Login
+            <label className="text-xs font-semibold uppercase tracking-wide text-[var(--suzaa-muted)]">
+              Session Status
             </label>
-            <p className="text-gray-700">{new Date().toLocaleString()}</p>
+            <span className="mt-2 inline-flex rounded-full bg-[var(--suzaa-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--suzaa-midnight)]">
+              Active
+            </span>
           </div>
         </div>
       </div>

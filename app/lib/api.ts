@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { createClient } from '@/lib/supabase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL =
+  process.env.NEXT_PUBLIC_SUPER_ADMIN_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://api.suzaa.com';
 
 export interface ApiError {
   status?: number;
@@ -23,7 +26,9 @@ export const api = axios.create({
 api.interceptors.request.use(async (config) => {
   if (typeof window !== 'undefined') {
     const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (session?.access_token) {
       config.headers.Authorization = `Bearer ${session.access_token}`;
     }

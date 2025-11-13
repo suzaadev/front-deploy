@@ -196,14 +196,14 @@ export default function AdminMerchantsPage() {
     }
   }
 
-  const filteredMerchants = merchants.filter(m => {
+  const filteredMerchants = merchants.filter((m) => {
     if (filter === 'active') return !m.suspendedAt;
     if (filter === 'suspended') return m.suspendedAt;
     return true;
   });
 
-  const activeCount = merchants.filter(m => !m.suspendedAt).length;
-  const suspendedCount = merchants.filter(m => m.suspendedAt).length;
+  const activeCount = merchants.filter((m) => !m.suspendedAt).length;
+  const suspendedCount = merchants.filter((m) => m.suspendedAt).length;
 
   if (loading) {
     return (
@@ -305,6 +305,7 @@ export default function AdminMerchantsPage() {
                       className="rounded-lg border border-[var(--suzaa-border)] bg-white px-3 py-2 text-xs font-medium text-[var(--suzaa-midnight)] focus:border-[var(--suzaa-blue)] focus:outline-none focus:ring-4 focus:ring-[var(--suzaa-blue)]/15"
                       value={editedMerchants[merchant.id]?.tier ?? merchant.tier}
                       onChange={(event) => handleTierChange(merchant.id, event.target.value as MerchantTier)}
+                      onClick={(event) => event.stopPropagation()}
                     >
                       {tierOptions.map((option) => (
                         <option key={option} value={option}>
@@ -324,6 +325,7 @@ export default function AdminMerchantsPage() {
                         merchant.paymentLinkMonthlyLimit.toString()
                       }
                       onChange={(event) => handleLimitChange(merchant.id, event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
                     />
                   </td>
                   <td className="px-5 py-4 text-sm text-[var(--suzaa-midnight)]">
@@ -338,6 +340,7 @@ export default function AdminMerchantsPage() {
                         '0'
                       }
                       onChange={(event) => handleWalletLimitChange(merchant.id, event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
                     />
                   </td>
                   <td className="px-5 py-4 text-xs text-[var(--suzaa-muted)]">
@@ -351,6 +354,27 @@ export default function AdminMerchantsPage() {
                         className="btn-primary px-4 py-2 text-xs disabled:opacity-60"
                       >
                         {savingId === merchant.id ? 'Saving…' : 'Save'}
+                      </button>
+                      {merchant.suspendedAt ? (
+                        <button
+                          onClick={() => handleUnsuspend(merchant.id)}
+                          className="btn-secondary px-4 py-2 text-xs"
+                        >
+                          Unsuspend
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSuspend(merchant.id)}
+                          className="rounded-xl border border-[rgba(239,68,68,0.28)] bg-[rgba(239,68,68,0.08)] px-4 py-2 text-xs font-semibold text-[var(--suzaa-danger)] transition hover:bg-[rgba(239,68,68,0.15)]"
+                        >
+                          Suspend
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(merchant.id)}
+                        className="rounded-xl border border-[var(--suzaa-border)] bg-white px-4 py-2 text-xs font-semibold text-[var(--suzaa-muted)] hover:border-[var(--suzaa-blue)]/40 hover:text-[var(--suzaa-blue)]"
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>

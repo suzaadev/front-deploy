@@ -50,7 +50,7 @@ export default function PublicWalletsPage() {
   async function fetchWallets() {
     try {
       setLoading(true);
-      const response = await fetch(`http://116.203.195.248:3000/public/wallets/${slug}`);
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/public/wallets/${slug}`);
       if (!response.ok) throw new Error('Merchant not found');
       const result = await response.json();
       setData(result.data);

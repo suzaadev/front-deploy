@@ -1,9 +1,10 @@
 'use client';
-import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/app/lib/api';
+import { api, type ApiError } from '@/app/lib/api';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 interface PaymentRequest {
   id: string;
@@ -25,21 +26,34 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const { user, merchant, loading: authLoading, merchantLoading } = useAuth();
+  const canFetch = useMemo(
+    () => Boolean(!authLoading && !merchantLoading && user && merchant),
+    [authLoading, merchantLoading, user, merchant],
+  );
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!canFetch) {
+      if (!authLoading && !merchantLoading && !user) {
+        router.push('/dashboard');
+      }
+      return;
+    }
     fetchOrders();
-  }, []);
+  }, [canFetch, authLoading, merchantLoading, user, router]);
 
   async function fetchOrders() {
     try {
       setLoading(true);
-      const response = await api.get('/payments/requests');
-      setOrders(response.data.data || []);
-    } catch (error: any) {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token');
+      const response = await api.get<{ success: boolean; data: PaymentRequest[] }>('/payments/requests');
+      const list = (response.data && 'data' in response.data && response.data.data) || [];
+      setOrders(list);
+    } catch (error) {
+      const apiError = error as ApiError;
+      if (apiError?.status === 401) {
         router.push('/dashboard');
+      } else {
+        console.error('Failed to fetch orders', error);
       }
     } finally {
       setLoading(false);
@@ -52,7 +66,12 @@ export default function OrdersPage() {
       await api.patch(`/payments/requests/${id}/settlement`, { settlementStatus: status });
       await fetchOrders();
     } catch (error) {
-      alert('Failed to update status');
+      const apiError = error as ApiError;
+      alert(
+        apiError?.payload?.error ||
+          apiError?.message ||
+          'Failed to update status',
+      );
     } finally {
       setUpdatingStatus(null);
     }
@@ -184,7 +203,7 @@ export default function OrdersPage() {
                 </td>
                 <td className="px-5 py-4">
                   <a
-                    href={`http://116.203.195.248:3001/${order.linkId}`}
+                    href={`${PAYMENT_PORTAL_BASE_URL}/${order.linkId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm font-semibold text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"

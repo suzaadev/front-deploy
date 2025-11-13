@@ -1,9 +1,10 @@
 'use client';
-import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/app/lib/api';
+import { api, type ApiError } from '@/app/lib/api';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 export default function CreatePaymentPage() {
   const router = useRouter();
@@ -13,32 +14,36 @@ export default function CreatePaymentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [defaultExpiry, setDefaultExpiry] = useState(60);
+  const { user, merchant, loading: authLoading, merchantLoading } = useAuth();
+  const canCreate = useMemo(
+    () => Boolean(!authLoading && !merchantLoading && user && merchant),
+    [authLoading, merchantLoading, user, merchant],
+  );
 
   useEffect(() => {
-    let isMounted = true;
-    async function loadDefaultExpiry() {
-      try {
-        const response = await api.get('/merchants/me');
-        const value = response.data?.data?.defaultPaymentExpiryMinutes;
-        if (isMounted && typeof value === 'number') {
-          const allowed = [15, 30, 60, 120];
-          const resolved = allowed.includes(value) ? value : 60;
-          setDefaultExpiry(resolved);
-          setExpiryMinutes(String(resolved));
-        }
-      } catch (err) {
-        console.warn('Failed to load merchant defaults', err);
-      }
+    if (!authLoading && !user) {
+      router.push('/dashboard');
     }
-    loadDefaultExpiry();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!merchantLoading && merchant) {
+      const value = merchant.defaultPaymentExpiryMinutes;
+      const allowed = [15, 30, 60, 120];
+      const resolved = allowed.includes(value) ? value : 60;
+      setDefaultExpiry(resolved);
+      setExpiryMinutes(String(resolved));
+    }
+  }, [merchantLoading, merchant]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    if (!canCreate) {
+      setError('Authentication required before creating payment requests');
+      return;
+    }
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -55,13 +60,16 @@ export default function CreatePaymentPage() {
 
     try {
       setLoading(true);
-      const response = await api.post('/payments/requests', {
+      const response = await api.post<{ success: boolean; data?: any }>(
+        '/payments/requests',
+        {
         amount: parsedAmount,
         description: description || undefined,
         expiryMinutes: parsedExpiry,
-      });
+        },
+      );
 
-      const data = response.data.data || response.data;
+      const data = response.data?.data ?? response.data;
       const linkId = data.linkId;
       
       if (!linkId) {
@@ -83,9 +91,14 @@ export default function CreatePaymentPage() {
       }
       
       router.push('/dashboard/orders');
-    } catch (error: any) {
+    } catch (error) {
+      const apiError = error as ApiError;
       console.error('Create payment error:', error);
-      setError(error.response?.data?.error || error.message || 'Failed to create payment');
+      setError(
+        apiError?.payload?.error ||
+          apiError?.message ||
+          'Failed to create payment',
+      );
     } finally {
       setLoading(false);
     }

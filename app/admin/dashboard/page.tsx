@@ -22,11 +22,8 @@ export default function AdminDashboardPage() {
   async function fetchStats() {
     try {
       setLoading(true);
-      const adminToken = localStorage.getItem("adminToken");
-      const response = await adminApi.get('/admin/stats', {
-        
-      });
-      setStats(response.data.data);
+      const response = await adminApi.get('/admin/stats');
+      setStats(response.data?.data ?? null);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     } finally {
@@ -36,50 +33,73 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Dashboard Overview</h1>
+    <div className="space-y-8">
+      <h2 className="text-3xl font-semibold text-[var(--suzaa-navy)]">Dashboard Overview</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-600 mb-1">Total Merchants</p>
-          <p className="text-3xl font-bold text-gray-900">{stats?.totalMerchants || 0}</p>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="surface-card">
+          <p className="text-sm text-[var(--suzaa-muted)] uppercase tracking-wide">Total Merchants</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--suzaa-midnight)]">
+            {stats?.totalMerchants ?? 0}
+          </p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-600 mb-1">Active Merchants</p>
-          <p className="text-3xl font-bold text-green-600">{stats?.activeMerchants || 0}</p>
+
+        <div className="surface-card">
+          <p className="text-sm text-[var(--suzaa-muted)] uppercase tracking-wide">Active Merchants</p>
+          <p className="mt-2 text-3xl font-bold text-emerald-600">
+            {stats?.activeMerchants ?? 0}
+          </p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-600 mb-1">Suspended</p>
-          <p className="text-3xl font-bold text-red-600">{stats?.suspendedMerchants || 0}</p>
+
+        <div className="surface-card">
+          <p className="text-sm text-[var(--suzaa-muted)] uppercase tracking-wide">Suspended</p>
+          <p className="mt-2 text-3xl font-bold text-rose-600">
+            {stats?.suspendedMerchants ?? 0}
+          </p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <p className="text-sm text-gray-600 mb-1">Total Payments</p>
-          <p className="text-3xl font-bold text-blue-600">{stats?.totalPayments || 0}</p>
+
+        <div className="surface-card">
+          <p className="text-sm text-[var(--suzaa-muted)] uppercase tracking-wide">Total Payments</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--suzaa-blue)]">
+            {stats?.totalPayments ?? 0}
+          </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a href="/admin/dashboard/merchants" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <p className="font-semibold text-gray-900">Manage Merchants</p>
-            <p className="text-sm text-gray-600 mt-1">View and manage all merchants</p>
+      <div className="surface-card space-y-4">
+        <h3 className="text-xl font-semibold text-[var(--suzaa-midnight)]">Quick Actions</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <a
+            href="/admin/dashboard/merchants"
+            className="rounded-2xl border border-[var(--suzaa-border)] bg-white p-4 transition hover:border-[var(--suzaa-blue)]/40 hover:shadow-soft"
+          >
+            <p className="text-sm font-semibold text-[var(--suzaa-midnight)]">Manage Merchants</p>
+            <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+              View, suspend, and adjust merchant quotas.
+            </p>
           </a>
-          <a href="/admin/settings" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <p className="font-semibold text-gray-900">System Settings</p>
-            <p className="text-sm text-gray-600 mt-1">Configure platform settings</p>
+          <a
+            href="/admin/dashboard/settings"
+            className="rounded-2xl border border-[var(--suzaa-border)] bg-white p-4 transition hover:border-[var(--suzaa-blue)]/40 hover:shadow-soft"
+          >
+            <p className="text-sm font-semibold text-[var(--suzaa-midnight)]">System Settings</p>
+            <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+              Configure platform level controls and policies.
+            </p>
           </a>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <p className="font-semibold text-gray-900">View Logs</p>
-            <p className="text-sm text-gray-600 mt-1">System activity logs</p>
-          </button>
+          <div className="rounded-2xl border border-[var(--suzaa-border)] bg-white p-4 opacity-75">
+            <p className="text-sm font-semibold text-[var(--suzaa-midnight)]">View Logs</p>
+            <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+              Coming soon – monitor operational activity.
+            </p>
+          </div>
         </div>
       </div>
     </div>

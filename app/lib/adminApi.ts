@@ -9,12 +9,13 @@ export const adminApi = axios.create({
   },
 });
 
-// Request interceptor for admin
-adminApi.interceptors.request.use((config) => {
+// Request interceptor - get token from ADMIN Supabase
+adminApi.interceptors.request.use(async (config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const { adminSupabase } = await import('@/app/lib/adminSupabase');
+    const { data: { session } } = await adminSupabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
   }
   return config;
