@@ -10,6 +10,7 @@ interface Settings {
   businessName: string;
   email: string;
   slug: string;
+  phoneNumber: string | null;
   defaultCurrency: string;
   timezone: string;
   allowUnsolicitedPayments: boolean;
@@ -24,7 +25,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const { user, merchant, loading: authLoading, merchantLoading } = useAuth();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const { user, merchant, loading: authLoading, merchantLoading, signOut, refreshMerchant } = useAuth();
   const canManage = useMemo(
     () => Boolean(!authLoading && !merchantLoading && user && merchant),
     [authLoading, merchantLoading, user, merchant],
@@ -49,6 +54,7 @@ export default function SettingsPage() {
         businessName: merchant.businessName,
         email: merchant.email,
         slug: merchant.slug,
+        phoneNumber: merchant.phoneNumber || null,
         defaultCurrency: merchant.defaultCurrency,
         timezone: merchant.timezone,
         allowUnsolicitedPayments: merchant.allowUnsolicitedPayments,
@@ -67,13 +73,40 @@ export default function SettingsPage() {
     
     try {
       setSaving(true);
-      await api.patch('/merchants/me', {
+      // Validate phone number if provided
+      if (settings.phoneNumber && settings.phoneNumber.trim() !== '') {
+        const phoneRegex = /^\d+$/;
+        if (!phoneRegex.test(settings.phoneNumber.trim())) {
+          setError('Phone number must contain only numbers');
+          return;
+        }
+        if (settings.phoneNumber.trim().length < 7 || settings.phoneNumber.trim().length > 20) {
+          setError('Phone number must be between 7 and 20 digits');
+          return;
+        }
+      }
+
+      const response = await api.patch('/merchants/me', {
+        phoneNumber: settings.phoneNumber?.trim() || null,
         defaultCurrency: settings.defaultCurrency,
         timezone: settings.timezone,
         allowUnsolicitedPayments: settings.allowUnsolicitedPayments,
         maxBuyerOrdersPerHour: settings.maxBuyerOrdersPerHour,
         defaultPaymentExpiryMinutes: settings.defaultPaymentExpiryMinutes,
       });
+      
+      // Update settings with the response data (especially slug which may have changed)
+      if (response.data?.data) {
+        setSettings({
+          ...settings,
+          slug: response.data.data.slug,
+          phoneNumber: response.data.data.phoneNumber,
+        });
+      }
+      
+      // Refresh merchant data to ensure everything is in sync
+      await refreshMerchant();
+      
       setSuccess('Settings saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
@@ -81,6 +114,30 @@ export default function SettingsPage() {
       setError(apiError?.payload?.error || apiError?.message || 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteConfirmation !== 'delete') {
+      setDeleteError('Please type "delete" to confirm');
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteError('');
+      // Use request method to ensure body is sent correctly with DELETE
+      await api.request({
+        method: 'DELETE',
+        url: '/merchants/me',
+        data: { confirmation: 'delete' }
+      });
+      await signOut();
+      router.push('/dashboard');
+    } catch (error) {
+      const apiError = error as ApiError;
+      setDeleteError(apiError?.payload?.error || apiError?.message || 'Failed to delete account');
+      setDeleting(false);
     }
   }
 
@@ -116,10 +173,32 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Merchant Slug</label>
               <div className="flex items-center gap-2">
                 <input type="text" value={settings.slug} readOnly className="input bg-gray-50 cursor-not-allowed flex-1" />
-                <a href={`${PAYMENT_PORTAL_BASE_URL}/${settings.slug}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">View Portal</a>
+                <a href={`${PAYMENT_PORTAL_BASE_URL}/recipient/${settings.slug}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">View Portal</a>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Public portal: {PAYMENT_PORTAL_BASE_URL}/{settings.slug}
+                Public portal: {PAYMENT_PORTAL_BASE_URL}/recipient/{settings.slug}
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+              <input
+                type="text"
+                value={settings.phoneNumber || ''}
+                onChange={(e) => {
+                  // Only allow numbers
+                  const value = e.target.value.replace(/\D/g, '');
+                  setSettings({ ...settings, phoneNumber: value || null });
+                }}
+                placeholder="12023831234"
+                className="input"
+                inputMode="numeric"
+                maxLength={20}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Include country code (WhatsApp style). Example: 12023831234 for US number
+              </p>
+              <p className="text-xs text-blue-600 mt-2 font-medium">
+                💡 When you add a phone number, it becomes your public slug. Removing it reverts to your original 6-digit code.
               </p>
             </div>
           </div>
@@ -190,6 +269,66 @@ export default function SettingsPage() {
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Settings'}</button>
         </form>
       </div>
+
+      <div className="bg-white rounded-lg border border-red-200 p-6 max-w-2xl mt-8">
+        <h2 className="text-lg font-semibold text-red-900 mb-2">Danger Zone</h2>
+        <p className="text-sm text-gray-600 mb-4">Permanently delete your account and all associated data. This action cannot be undone.</p>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+        >
+          Delete Account
+        </button>
+      </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-semibold text-red-900 mb-2">Delete Account</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This action is <strong>final and cannot be undone</strong>. All your data, payment requests, wallets, and settings will be permanently deleted.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Type <strong>"delete"</strong> to confirm:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="input w-full"
+                placeholder="delete"
+                autoFocus
+              />
+            </div>
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{deleteError}</p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmation !== 'delete'}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                {deleting ? 'Deleting...' : 'Delete Account'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmation('');
+                  setDeleteError('');
+                }}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

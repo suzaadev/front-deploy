@@ -203,7 +203,7 @@ export default function OrdersPage() {
                 </td>
                 <td className="px-5 py-4">
                   <a
-                    href={`${PAYMENT_PORTAL_BASE_URL}/${order.linkId}`}
+                    href={`${PAYMENT_PORTAL_BASE_URL}/recipient/${order.linkId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm font-semibold text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"

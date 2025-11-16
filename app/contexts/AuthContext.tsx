@@ -18,6 +18,7 @@ interface MerchantProfile {
   slug: string;
   email: string;
   businessName: string;
+  phoneNumber: string | null;
   defaultCurrency: string;
   timezone: string;
   maxBuyerOrdersPerHour: number;
@@ -61,7 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       const apiError = error as ApiError;
-      if (apiError?.status === 404) {
+      // If 403 (Forbidden), merchant is suspended - sign them out
+      if (apiError?.status === 403) {
+        console.warn('Merchant is suspended, signing out');
+        await supabase.auth.signOut();
+        setMerchant(null);
+        setUser(null);
+      } else if (apiError?.status === 404) {
         setMerchant(null);
       } else {
         console.error('Unable to load merchant profile', error);
@@ -69,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setMerchantLoading(false);
     }
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     let isMounted = true;

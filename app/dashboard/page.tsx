@@ -46,6 +46,25 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
+      // Check if merchant is suspended before allowing Supabase to send OTP
+      try {
+        const statusResponse = await api.post('/public/check-merchant-status', { email });
+        if (!statusResponse.data?.canProceed) {
+          setError('Account has been suspended. Please contact support for assistance.');
+          setLoading(false);
+          return;
+        }
+      } catch (statusError: any) {
+        // If 403, merchant is suspended - BLOCK THEM
+        if (statusError?.response?.status === 403) {
+          setError('Account has been suspended. Please contact support for assistance.');
+          setLoading(false);
+          return;
+        }
+        // For other errors, log but continue (don't block registration for network issues)
+        console.warn('Failed to check merchant status:', statusError);
+      }
+
       const { error: supabaseError } = await supabase.auth.signInWithOtp({
         email,
         options: { shouldCreateUser: false }
@@ -66,22 +85,95 @@ export default function MerchantAuthPage() {
     setLoading(true);
 
     try {
-      const { error: supabaseError } = await supabase.auth.verifyOtp({
+      // Check suspension status BEFORE verifying OTP
+      try {
+        const statusResponse = await api.post('/public/check-merchant-status', { email });
+        if (!statusResponse.data.canProceed) {
+          setError(statusResponse.data.message || 'Account has been suspended. Please contact support.');
+          return;
+        }
+      } catch (statusError: any) {
+        if (statusError?.response?.status === 403) {
+          setError(statusError.response.data?.message || 'Account has been suspended. Please contact support.');
+          return;
+        }
+      }
+
+      // Verify OTP with Supabase
+      const { error: supabaseError, data: supabaseData } = await supabase.auth.verifyOtp({
         email,
         token: pin,
         type: mode === 'verify-register' ? 'signup' : 'email'
       });
       if (supabaseError) throw supabaseError;
 
+      // IMPORTANT: Check suspension IMMEDIATELY after OTP verification, before proceeding
+      // This prevents suspended users from getting a valid session
+      try {
+        const statusCheck = await api.post('/public/check-merchant-status', { email });
+        if (!statusCheck.data?.canProceed) {
+          // Sign out immediately if suspended
+          await supabase.auth.signOut();
+          setError(statusCheck.data?.message || 'Account has been suspended. Please contact support.');
+          setLoading(false);
+          return;
+        }
+      } catch (statusError: any) {
+        if (statusError?.response?.status === 403) {
+          await supabase.auth.signOut();
+          setError(statusError.response.data?.message || 'Account has been suspended. Please contact support.');
+          setLoading(false);
+          return;
+        }
+        // If check fails for other reasons, still try to proceed but log it
+        console.warn('Suspension check failed after OTP verification:', statusError);
+      }
+
       if (mode === 'verify-register') {
         await api.post('/auth/bootstrap', { businessName });
       }
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      await refreshMerchant();
-      router.push('/dashboard/overview');
+      // Now refresh merchant - this will also check suspension via /auth/me
+      try {
+        await refreshMerchant();
+        
+        // Double-check by calling /auth/me directly - if suspended, this will return 403
+        const merchantResponse = await api.get('/auth/me');
+        if (merchantResponse.data?.data) {
+          // All checks passed, redirect to dashboard
+          router.push('/dashboard/overview');
+        }
+      } catch (meError: any) {
+        // Check for suspension errors (403 Forbidden or 401 with suspension message)
+        const status = meError?.response?.status;
+        const errorMessage = meError?.response?.data?.error || meError?.message || '';
+        const isSuspended = status === 403 || 
+                           (status === 401 && errorMessage.toLowerCase().includes('suspended')) ||
+                           errorMessage.toLowerCase().includes('suspended');
+        
+        if (isSuspended) {
+          await supabase.auth.signOut();
+          setError('Account has been suspended. Please contact support for assistance.');
+          setLoading(false);
+          return;
+        } else {
+          throw meError;
+        }
+      }
     } catch (error: any) {
-      setError(error?.message || error?.response?.data?.error || 'Verification failed');
+      // Check for suspension errors (403 Forbidden or 401 with suspension message)
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.error || error?.message || '';
+      const isSuspended = status === 403 || 
+                         (status === 401 && errorMessage.toLowerCase().includes('suspended')) ||
+                         errorMessage.toLowerCase().includes('suspended');
+      
+      if (isSuspended) {
+        await supabase.auth.signOut();
+        setError('Account has been suspended. Please contact support for assistance.');
+      } else {
+        setError(error?.message || error?.response?.data?.error || 'Verification failed');
+      }
     } finally {
       setLoading(false);
     }

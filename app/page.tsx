@@ -1,128 +1,394 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Shield, Zap, Globe } from 'lucide-react';
+import { api } from '@/app/lib/api';
+import { useAuth } from '@/app/contexts/AuthContext';
+
+type Mode = 'login' | 'register' | 'verify-login' | 'verify-register';
 
 export default function HomePage() {
   const router = useRouter();
+  const { supabase, refreshMerchant } = useAuth();
+  const [mode, setMode] = useState<Mode>('login');
+  const [email, setEmail] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    try {
+      const { error: supabaseError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true }
+      });
+      if (supabaseError) throw supabaseError;
+      setMessage('Check your email for the verification PIN!');
+      setMode('verify-register');
+    } catch (error: any) {
+      setError(error?.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    try {
+      // Check if merchant is suspended before allowing Supabase to send OTP
+      try {
+        const statusResponse = await api.post('/public/check-merchant-status', { email });
+        if (!statusResponse.data?.canProceed) {
+          setError('Account has been suspended. Please contact support for assistance.');
+          setLoading(false);
+          return;
+        }
+      } catch (statusError: any) {
+        // If 403, merchant is suspended - BLOCK THEM
+        if (statusError?.response?.status === 403) {
+          setError('Account has been suspended. Please contact support for assistance.');
+          setLoading(false);
+          return;
+        }
+        // For other errors, log but continue (don't block registration for network issues)
+        console.warn('Failed to check merchant status:', statusError);
+      }
+
+      const { error: supabaseError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false }
+      });
+      if (supabaseError) throw supabaseError;
+      setMessage('Check your email for the login PIN!');
+      setMode('verify-login');
+    } catch (error: any) {
+      setError(error?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      // Check suspension status BEFORE verifying OTP
+      try {
+        const statusResponse = await api.post('/public/check-merchant-status', { email });
+        if (!statusResponse.data.canProceed) {
+          setError(statusResponse.data.message || 'Account has been suspended. Please contact support.');
+          return;
+        }
+      } catch (statusError: any) {
+        if (statusError?.response?.status === 403) {
+          setError(statusError.response.data?.message || 'Account has been suspended. Please contact support.');
+          return;
+        }
+      }
+
+      // Verify OTP with Supabase
+      const { error: supabaseError, data: supabaseData } = await supabase.auth.verifyOtp({
+        email,
+        token: pin,
+        type: mode === 'verify-register' ? 'signup' : 'email'
+      });
+      if (supabaseError) throw supabaseError;
+
+      // IMPORTANT: Check suspension IMMEDIATELY after OTP verification, before proceeding
+      // This prevents suspended users from getting a valid session
+      try {
+        const statusCheck = await api.post('/public/check-merchant-status', { email });
+        if (!statusCheck.data.canProceed) {
+          // Sign out immediately if suspended
+          await supabase.auth.signOut();
+          setError(statusCheck.data.message || 'Account has been suspended. Please contact support.');
+          return;
+        }
+      } catch (statusError: any) {
+        if (statusError?.response?.status === 403) {
+          await supabase.auth.signOut();
+          setError(statusError.response.data?.message || 'Account has been suspended. Please contact support.');
+          return;
+        }
+      }
+
+      if (mode === 'verify-register') {
+        await api.post('/auth/bootstrap', { businessName });
+      }
+      
+      // Now refresh merchant - this will also check suspension via /auth/me
+      try {
+        await refreshMerchant();
+        
+        // Double-check by calling /auth/me directly - if suspended, this will return 403
+        const merchantResponse = await api.get('/auth/me');
+        if (merchantResponse.data?.data) {
+          // All checks passed, redirect to dashboard
+          router.push('/dashboard/overview');
+        }
+      } catch (meError: any) {
+        // Check for suspension errors (403 Forbidden or 401 with suspension message)
+        const status = meError?.response?.status;
+        const errorMessage = meError?.response?.data?.error || meError?.message || '';
+        const isSuspended = status === 403 || 
+                           (status === 401 && errorMessage.toLowerCase().includes('suspended')) ||
+                           errorMessage.toLowerCase().includes('suspended');
+        
+        if (isSuspended) {
+          await supabase.auth.signOut();
+          setError('Account has been suspended. Please contact support for assistance.');
+          setLoading(false);
+          return;
+        } else {
+          throw meError;
+        }
+      }
+    } catch (error: any) {
+      // Check for suspension errors (403 Forbidden or 401 with suspension message)
+      const status = error?.response?.status;
+      const errorMessage = error?.response?.data?.error || error?.message || '';
+      const isSuspended = status === 403 || 
+                         (status === 401 && errorMessage.toLowerCase().includes('suspended')) ||
+                         errorMessage.toLowerCase().includes('suspended');
+      
+      if (isSuspended) {
+        await supabase.auth.signOut();
+        setError('Account has been suspended. Please contact support for assistance.');
+      } else {
+        setError(error?.message || error?.response?.data?.error || 'Verification failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--suzaa-surface-subtle)]">
-      <div className="absolute inset-0 bg-gradient-midnight opacity-95" />
-      <div className="absolute left-1/2 top-0 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-[var(--suzaa-blue)]/30 blur-[160px]" />
-      <div className="absolute bottom-0 right-0 h-[420px] w-[420px] rounded-full bg-[var(--suzaa-teal)]/25 blur-[150px]" />
+    <div className="flex min-h-screen items-center justify-center bg-[var(--suzaa-surface-subtle)] px-4 py-12">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[var(--suzaa-border)] bg-white/90 shadow-soft backdrop-blur">
+        <div
+          className="px-6 py-8 text-center"
+          style={{ background: 'linear-gradient(135deg, #0a84ff 0%, #00b8a9 100%)' }}
+        >
+          <div className="inline-flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 text-sm font-semibold text-white shadow-soft">
+              Σ
+            </div>
+            <div className="text-left text-white">
+              <p className="text-[0.6rem] uppercase tracking-[0.32em] text-white/60">Merchant Portal</p>
+              <h1 className="text-xl font-semibold uppercase tracking-[0.24em] text-white">SuzAA Access</h1>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-white/80">
+            Passwordless entry to manage payment links, wallets, and settlements.
+          </p>
+        </div>
 
-      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-20 px-6 py-24 md:px-10 lg:px-12">
-        <section className="text-center text-white md:text-left">
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.26em] text-white/70">
-            <span className="h-2 w-2 rounded-full bg-[var(--suzaa-teal)]" />
-            Enterprise Crypto Payments
-          </div>
-          <div className="mt-8 grid gap-10 md:grid-cols-[1.2fr_1fr] md:items-center">
-            <div>
-              <h1 className="text-4xl font-semibold leading-tight md:text-5xl lg:text-6xl">
-                Accept payments globally<br />
-                with a credible fintech core.
-              </h1>
-              <p className="mt-6 text-base text-white/70 md:text-lg">
-                SUZAA is an open payment network engineered for compliance teams, operators,
-                and developers. Start with cash, expand with blockchain plugins, and stay in
-                full control of risk.
-              </p>
-              <div className="mt-10 flex flex-wrap gap-4">
-                <button
-                  onClick={() => router.push('/dashboard')}
-                  className="btn-primary text-base"
-                >
-                  Launch Merchant Console
-                </button>
-                <button
-                  onClick={() => window.open('https://github.com/suzaaglobal/first', '_blank')}
-                  className="btn-secondary text-base"
-                >
-                  View GitHub →
-                </button>
-              </div>
-            </div>
-            <div className="rounded-3xl border border-white/20 bg-white/10 p-8 shadow-[0_45px_120px_-60px_rgba(0,0,0,0.5)] backdrop-blur">
-              <div className="flex flex-col gap-6 text-left">
-                {[
-                  {
-                    title: 'Security-first architecture',
-                    body: 'Passwordless authentication, hardware-backed secrets, and distributed rate limiting.',
-                    icon: Shield,
-                  },
-                  {
-                    title: 'Instant merchant activation',
-                    body: 'Cash settlement out of the box. Plug in blockchain rails when you’re ready.',
-                    icon: Zap,
-                  },
-                  {
-                    title: 'Global reach, unified control',
-                    body: 'Deploy in any region, orchestrate plugins centrally, and observe in real time.',
-                    icon: Globe,
-                  },
-                ].map((feature) => {
-                  const Icon = feature.icon;
-                  return (
-                    <div key={feature.title} className="flex gap-4 rounded-2xl bg-white/5 p-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                        <Icon className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{feature.title}</p>
-                        <p className="mt-1 text-sm text-white/65">{feature.body}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-white/20 bg-white/90 p-8 shadow-[0_40px_120px_-60px_rgba(11,17,31,0.55)]">
-          <div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                title: 'Observable by default',
-                body: 'Structured logging, audit trails, and clear incident workflows keep compliance teams informed.',
-              },
-              {
-                title: 'Plugin ecosystem ready',
-                body: 'Authorised blockchain plugins communicate over signed HTTP, keeping the core language-agnostic.',
-              },
-              {
-                title: 'Trusted experience',
-                body: 'Minimalist UI with strong contrast, precise spacing, and clarity that inspires customer trust.',
-              },
-            ].map((item) => (
-              <div key={item.title} className="surface-card p-6">
-                <h3 className="text-lg font-semibold text-[var(--suzaa-navy)]">
-                  {item.title}
-                </h3>
-                <p className="mt-3 text-sm text-[var(--suzaa-muted)]">{item.body}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--suzaa-border)]/70 bg-[var(--suzaa-surface-muted)] px-6 py-8 text-center md:flex-row md:justify-between md:text-left">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
-                Live Demo
-              </p>
-              <p className="mt-2 text-sm text-[var(--suzaa-midnight)]">
-                Explore a merchant storefront powered by SUZAA.
-              </p>
-            </div>
+        <div className="bg-white px-5 pt-5">
+          <div className="flex rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] p-1">
             <button
-              onClick={() => router.push('/jumasm')}
-              className="btn-secondary inline-flex items-center gap-2"
+              onClick={() => setMode('login')}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                mode === 'login'
+                  ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
+                  : mode === 'verify-login'
+                    ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
+                    : 'text-[var(--suzaa-muted)] hover:text-[var(--suzaa-blue)]'
+              }`}
             >
-              <span className="font-mono text-sm">jumasm</span>
-              <ArrowRight className="h-4 w-4" />
+              Sign in
+            </button>
+            <button
+              onClick={() => setMode('register')}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                mode === 'register' || mode === 'verify-register'
+                  ? 'bg-white text-[var(--suzaa-navy)] shadow-soft'
+                  : 'text-[var(--suzaa-muted)] hover:text-[var(--suzaa-blue)]'
+              }`}
+            >
+              Create account
             </button>
           </div>
-        </section>
+        </div>
+
+        <div className="bg-white px-6 py-6">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-[var(--suzaa-navy)]">
+              {mode.includes('verify')
+                ? 'Verify your one-time PIN'
+                : mode === 'login'
+                  ? 'Access your control centre'
+                  : 'Onboard your merchant account'}
+            </h2>
+            <p className="mt-2 text-xs text-[var(--suzaa-muted)]">
+              {mode.includes('verify')
+                ? 'Enter the 6-digit code we delivered to your inbox.'
+                : mode === 'login'
+                  ? 'Passwordless entry powered by email verification.'
+                  : 'We will send a verification PIN to activate your workspace.'}
+            </p>
+          </div>
+
+          {error && (
+            <div className="mt-5 rounded-2xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-sm text-[var(--suzaa-danger)]">
+              {error}
+            </div>
+          )}
+
+          {message && (
+            <div className="mt-5 rounded-2xl border border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.08)] px-4 py-3 text-sm text-[var(--suzaa-success)]">
+              {message}
+            </div>
+          )}
+
+          <div className="mt-6 space-y-6">
+            {mode === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Work email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input mt-2"
+                    placeholder="merchant@company.com"
+                    required
+                  />
+                  <p className="mt-2 text-xs text-[var(--suzaa-muted)]">
+                    We'll send a login PIN to this address.
+                  </p>
+                </div>
+
+                <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
+                  {loading ? 'Sending PIN…' : 'Send login PIN'}
+                </button>
+              </form>
+            )}
+
+            {mode === 'register' && (
+              <form onSubmit={handleRegister} className="space-y-5">
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Business name
+                  </label>
+                  <input
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    className="input mt-2"
+                    placeholder="ACME Payments Ltd."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Work email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input mt-2"
+                    placeholder="ops@acme.com"
+                    required
+                  />
+                </div>
+
+                <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
+                  {loading ? 'Sending PIN…' : 'Register & send PIN'}
+                </button>
+              </form>
+            )}
+
+            {(mode === 'verify-register' || mode === 'verify-login') && (
+              <form onSubmit={handleVerify} className="space-y-5">
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input mt-2"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                    Verification PIN
+                  </label>
+                  <input
+                    type="text"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    className="input mt-2 tracking-[0.4em] text-center font-mono text-lg"
+                    placeholder="••••••"
+                    maxLength={6}
+                    required
+                  />
+                </div>
+
+                <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
+                  {loading ? 'Verifying…' : 'Verify & continue'}
+                </button>
+              </form>
+            )}
+
+            {mode !== 'login' && !mode.includes('verify') && (
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="btn-ghost w-full justify-center text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+              >
+                Already have access? Sign in
+              </button>
+            )}
+
+            {mode === 'login' && (
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                className="btn-ghost w-full justify-center text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+              >
+                Need an account? Create one
+              </button>
+            )}
+
+            {mode.includes('verify') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setPin('');
+                }}
+                className="btn-ghost w-full justify-center text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)]"
+              >
+                Back to sign in
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+          Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
+        </div>
       </div>
     </div>
   );

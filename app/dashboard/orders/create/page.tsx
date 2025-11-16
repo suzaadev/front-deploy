@@ -76,7 +76,7 @@ export default function CreatePaymentPage() {
         throw new Error('No linkId in response');
       }
 
-      const paymentUrl = `${PAYMENT_PORTAL_BASE_URL}/${linkId}`;
+      const paymentUrl = `${PAYMENT_PORTAL_BASE_URL}/recipient/${linkId}`;
       
       // Try to copy to clipboard (only works on HTTPS)
       try {

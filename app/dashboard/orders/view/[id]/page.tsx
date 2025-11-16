@@ -61,7 +61,7 @@ export default function PaymentRequestDetailPage() {
 
   function copyPaymentLink() {
     if (!payment) return;
-    const url = `${PAYMENT_PORTAL_BASE_URL}/${payment.linkId}`;
+    const url = `${PAYMENT_PORTAL_BASE_URL}/recipient/${payment.linkId}`;
     try {
       navigator.clipboard.writeText(url);
       setCopied(true);
@@ -81,7 +81,7 @@ export default function PaymentRequestDetailPage() {
 
   if (!payment) return null;
 
-  const paymentUrl = `${PAYMENT_PORTAL_BASE_URL}/${payment.linkId}`;
+  const paymentUrl = `${PAYMENT_PORTAL_BASE_URL}/recipient/${payment.linkId}`;
   const isExpired = new Date() > new Date(payment.expiresAt);
   const timeRemaining = isExpired ? 'Expired' : getTimeRemaining(payment.expiresAt);
 

@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/app/lib/api';
-import { DollarSign, Clock, CheckCircle, CreditCard } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, CreditCard, ExternalLink, Phone } from 'lucide-react';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
 export default function OverviewPage() {
   const router = useRouter();
+  const { merchant } = useAuth();
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -15,6 +18,11 @@ export default function OverviewPage() {
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Check if slug is a 6-digit number (original slug) or a phone number
+  // Phone numbers are 7-20 digits, original slugs are exactly 6 digits
+  const isOriginalSlug = merchant?.slug && /^\d{6}$/.test(merchant.slug);
+  const isPhoneNumberSlug = merchant?.slug && /^\d{7,20}$/.test(merchant.slug);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -101,6 +109,60 @@ export default function OverviewPage() {
           );
         })}
       </div>
+
+      {merchant && (
+        <div className="surface-card">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <Phone className="h-4 w-4 text-[var(--suzaa-muted)]" />
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+                  Public Portal
+                </p>
+              </div>
+              {isPhoneNumberSlug ? (
+                <>
+                  <p className="text-lg font-semibold text-[var(--suzaa-navy)]">
+                    {merchant.slug}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--suzaa-muted)]">
+                    Your payment portal is linked to your phone number
+                  </p>
+                </>
+              ) : isOriginalSlug ? (
+                <>
+                  <p className="text-lg font-semibold text-[var(--suzaa-navy)]">
+                    {merchant.slug}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--suzaa-muted)]">
+                    Add your phone number in Settings to use it as your public portal link
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-semibold text-[var(--suzaa-navy)]">
+                    {merchant.slug}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--suzaa-muted)]">
+                    Your payment portal identifier
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <a
+                href={`${PAYMENT_PORTAL_BASE_URL}/recipient/${merchant.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary inline-flex items-center justify-center gap-2 text-sm"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View Portal
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="surface-card p-0">
         <div className="border-b border-[var(--suzaa-border)] px-6 py-5">
