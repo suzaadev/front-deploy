@@ -241,10 +241,18 @@ export default function PaymentRequestDetailPage() {
                     ? 'badge-danger'
                     : payment.settlementStatus === 'REISSUED'
                     ? 'badge-warning'
+                    : payment.settlementStatus === 'CANCELED'
+                    ? 'badge-danger'
+                    : payment.settlementStatus === 'CLAIMED_PAID'
+                    ? 'badge-warning'
                     : 'badge'
                 }`}
               >
-                {payment.settlementStatus}
+                {payment.settlementStatus === 'CLAIMED_PAID' 
+                  ? 'Claimed Paid' 
+                  : payment.settlementStatus === 'CANCELED'
+                  ? 'Canceled'
+                  : payment.settlementStatus}
               </span>
             </div>
           </div>

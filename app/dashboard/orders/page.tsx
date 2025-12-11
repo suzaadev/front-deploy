@@ -196,6 +196,8 @@ export default function OrdersPage() {
                     <option value="SETTLED">Settled</option>
                     <option value="REJECTED">Rejected</option>
                     <option value="REISSUED">Re-issued</option>
+                    <option value="CANCELED">Canceled</option>
+                    <option value="CLAIMED_PAID">Claimed Paid</option>
                   </select>
                 </td>
                 <td className="px-5 py-4 text-xs text-[var(--suzaa-muted)]">

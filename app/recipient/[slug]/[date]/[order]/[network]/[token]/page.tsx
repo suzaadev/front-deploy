@@ -1,10 +1,10 @@
 'use client';
 import { PUBLIC_API_BASE_URL } from '@/app/lib/config';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Copy } from 'lucide-react';
+import { Copy, RefreshCw } from 'lucide-react';
 
 interface Wallet {
   id: string;
@@ -27,6 +27,7 @@ interface PaymentData {
   description: string;
   status: string;
   expiresAt: string;
+  settlementStatus?: string;
   merchant: { name: string; slug: string };
   wallets: Wallet[];
 }
@@ -39,6 +40,22 @@ function formatNetwork(network: string): string {
     POLYGON: 'Polygon',
   };
   return names[network] || network;
+}
+
+function formatTimeRemaining(seconds: number): string {
+  if (seconds <= 0) return 'Expired';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  }
+  return `${secs}s`;
 }
 
 export default function PublicPaymentPage() {
@@ -54,30 +71,166 @@ export default function PublicPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState('');
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+  const [secondsSinceRefresh, setSecondsSinceRefresh] = useState<number>(0);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  const quoteRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    fetchPayment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkId]);
-
-  async function fetchPayment() {
+  const fetchPayment = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+      
       const response = await fetch(`${PUBLIC_API_BASE_URL}/public/payment/${linkId}`);
       if (!response.ok) throw new Error('Payment not found');
       const data = await response.json();
       setPayment(data.data);
+      setLastRefreshedAt(new Date());
+      
+      // Update countdown based on expiresAt
+      if (data.data?.expiresAt) {
+        const expiresAt = new Date(data.data.expiresAt).getTime();
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setTimeRemaining(remaining);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load payment');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }
+  }, [linkId]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchPayment(false);
+  }, [fetchPayment]);
+
+  // Set up countdown timer
+  useEffect(() => {
+    if (!payment?.expiresAt) return;
+
+    const updateCountdown = () => {
+      const expiresAt = new Date(payment.expiresAt).getTime();
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+      setTimeRemaining(remaining);
+
+      // If expired, refresh payment status
+      if (remaining === 0 && payment.status !== 'EXPIRED') {
+        fetchPayment(false);
+      }
+    };
+
+    updateCountdown();
+    countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [payment?.expiresAt, payment?.status, fetchPayment]);
+
+  // Set up quote refresh every 60 seconds
+  useEffect(() => {
+    if (!payment || payment.status === 'EXPIRED') return;
+
+    quoteRefreshIntervalRef.current = setInterval(() => {
+      fetchPayment(true); // Silent refresh
+    }, 60000); // 60 seconds
+
+    return () => {
+      if (quoteRefreshIntervalRef.current) {
+        clearInterval(quoteRefreshIntervalRef.current);
+      }
+    };
+  }, [payment, fetchPayment]);
+
+  // Update seconds since refresh every second
+  useEffect(() => {
+    const updateRefreshTimer = () => {
+      const elapsed = Math.floor((Date.now() - lastRefreshedAt.getTime()) / 1000);
+      setSecondsSinceRefresh(elapsed);
+    };
+
+    updateRefreshTimer();
+    refreshTimerIntervalRef.current = setInterval(updateRefreshTimer, 1000);
+
+    return () => {
+      if (refreshTimerIntervalRef.current) {
+        clearInterval(refreshTimerIntervalRef.current);
+      }
+    };
+  }, [lastRefreshedAt]);
+
+  // Cleanup all intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (quoteRefreshIntervalRef.current) {
+        clearInterval(quoteRefreshIntervalRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      if (refreshTimerIntervalRef.current) {
+        clearInterval(refreshTimerIntervalRef.current);
+      }
+    };
+  }, []);
 
   function copy(value: string, key: string) {
     navigator.clipboard.writeText(value);
     setCopied(key);
     setTimeout(() => setCopied(''), 2000);
+  }
+
+  async function updatePaymentStatus(status: 'CANCELED' | 'CLAIMED_PAID') {
+    if (isUpdatingStatus || isExpired) return;
+
+    try {
+      setIsUpdatingStatus(true);
+      setStatusMessage(null);
+
+      const response = await fetch(`${PUBLIC_API_BASE_URL}/public/payment/${linkId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+
+      const data = await response.json();
+      setStatusMessage({
+        type: 'success',
+        text: data.message || `Status updated to ${status === 'CANCELED' ? 'Canceled' : 'Claimed Paid'}`,
+      });
+
+      // Refresh payment data to get updated status
+      await fetchPayment(true);
+    } catch (err: any) {
+      setStatusMessage({
+        type: 'error',
+        text: err.message || 'Failed to update status. Please try again.',
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   }
 
   function buildPaymentUri(wallet: Wallet, amount: number, memo: string) {
@@ -112,7 +265,7 @@ export default function PublicPaymentPage() {
   const wallet = payment.wallets.find(
     (w) => w.network === network && w.tokenSymbol === token
   );
-  const isExpired = payment.status === 'EXPIRED';
+  const isExpired = payment.status === 'EXPIRED' || timeRemaining <= 0;
 
   if (!wallet) {
     return (
@@ -128,6 +281,7 @@ export default function PublicPaymentPage() {
   }
 
   const paymentUri = buildPaymentUri(wallet, wallet.cryptoAmount, payment.orderNumber);
+  const secondsUntilNextRefresh = Math.max(0, 60 - secondsSinceRefresh);
 
   return (
     <div className="min-h-screen bg-[var(--suzaa-surface-subtle)] py-8 px-4">
@@ -145,6 +299,36 @@ export default function PublicPaymentPage() {
             <div className="mt-4 rounded-2xl bg-white/15 px-4 py-3 text-xs text-white/85">
               Amount due · {payment.currency} {payment.amountUsd.toFixed(2)}
             </div>
+            
+            {/* Countdown Timer */}
+            {!isExpired && (
+              <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/70">Link expires in</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {formatTimeRemaining(timeRemaining)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/70">Quote refreshes in</p>
+                    <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-white">
+                      {isRefreshing ? (
+                        <>
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3 w-3" />
+                          {secondsUntilNextRefresh}s
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-5 bg-white px-6 py-6">
@@ -171,16 +355,23 @@ export default function PublicPaymentPage() {
                 </div>
 
                 <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3">
-                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
-                    Amount to send
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)]">
+                      Amount to send
+                    </p>
+                    {!isRefreshing && secondsUntilNextRefresh <= 10 && (
+                      <p className="text-[0.65rem] text-[var(--suzaa-blue)]">
+                        Updating in {secondsUntilNextRefresh}s...
+                      </p>
+                    )}
+                  </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xl font-semibold text-[var(--suzaa-midnight)]">
                         {wallet.cryptoAmount.toFixed(wallet.tokenDecimals)} {wallet.tokenSymbol}
                       </p>
                       <p className="text-xs text-[var(--suzaa-muted)]">
-                        Approx {payment.currency} {payment.amountUsd.toFixed(2)}
+                        ≈ {payment.currency} {payment.amountUsd.toFixed(2)} • Rate updated {secondsSinceRefresh < 60 ? `${secondsSinceRefresh}s ago` : `${Math.floor(secondsSinceRefresh / 60)}m ago`}
                       </p>
                     </div>
                     <button
@@ -197,7 +388,12 @@ export default function PublicPaymentPage() {
                     Scan QR code
                   </p>
                   <div className="mt-4 flex justify-center rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-4">
-                    <QRCodeCanvas value={paymentUri} size={200} level="H" />
+                    <QRCodeCanvas 
+                      key={`${wallet.cryptoAmount}-${wallet.tokenSymbol}`}
+                      value={paymentUri} 
+                      size={200} 
+                      level="H" 
+                    />
                   </div>
                   <p className="mt-3 text-center text-xs text-[var(--suzaa-muted)]">
                     {wallet.network === 'SOLANA' && 'Scan with Phantom, Solflare, or Backpack'}
@@ -284,9 +480,69 @@ export default function PublicPaymentPage() {
               </div>
             )}
 
-            <div className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
-              Expires {new Date(payment.expiresAt).toLocaleString()}
-            </div>
+            {!isExpired && (
+              <>
+                <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3 text-center">
+                  <p className="text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+                    Quote auto-refreshes every 60 seconds
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                    Prices update automatically to reflect current market rates
+                  </p>
+                </div>
+
+                {/* Status update buttons */}
+                <div className="rounded-2xl border border-[var(--suzaa-border)] bg-white px-4 py-4 shadow-soft">
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[var(--suzaa-muted)] text-center mb-4">
+                    Payment Status
+                  </p>
+                  
+                  {payment.settlementStatus === 'CANCELED' && (
+                    <div className="mb-4 rounded-xl border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-4 py-3 text-xs text-[var(--suzaa-danger)]">
+                      This payment has been canceled.
+                    </div>
+                  )}
+
+                  {payment.settlementStatus === 'CLAIMED_PAID' && (
+                    <div className="mb-4 rounded-xl border border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.08)] px-4 py-3 text-xs text-[var(--suzaa-success)]">
+                      You've marked this payment as paid. The merchant will review and confirm.
+                    </div>
+                  )}
+
+                  {statusMessage && (
+                    <div
+                      className={`mb-4 rounded-xl px-4 py-3 text-xs ${
+                        statusMessage.type === 'success'
+                          ? 'border border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.08)] text-[var(--suzaa-success)]'
+                          : 'border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] text-[var(--suzaa-danger)]'
+                      }`}
+                    >
+                      {statusMessage.text}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => updatePaymentStatus('CANCELED')}
+                      disabled={isUpdatingStatus || payment.status === 'EXPIRED' || payment.settlementStatus === 'CANCELED'}
+                      className="btn-secondary flex-1 justify-center border-[var(--suzaa-border)] text-[var(--suzaa-midnight)] hover:bg-[var(--suzaa-surface-muted)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUpdatingStatus ? 'Updating...' : payment.settlementStatus === 'CANCELED' ? 'Canceled' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={() => updatePaymentStatus('CLAIMED_PAID')}
+                      disabled={isUpdatingStatus || payment.status === 'EXPIRED' || payment.settlementStatus === 'CLAIMED_PAID'}
+                      className="btn-primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUpdatingStatus ? 'Updating...' : payment.settlementStatus === 'CLAIMED_PAID' ? 'Marked as Paid' : 'I Paid'}
+                    </button>
+                  </div>
+                  <p className="mt-3 text-center text-xs text-[var(--suzaa-muted)]">
+                    Let the merchant know if you've completed payment or need to cancel
+                  </p>
+                </div>
+              </>
+            )}
           </div>
           <div className="border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
             Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>

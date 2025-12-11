@@ -1,7 +1,7 @@
 'use client';
 import { PUBLIC_API_BASE_URL } from '@/app/lib/config';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 
@@ -17,6 +17,22 @@ interface PaymentData {
   availableOptions: Array<{ network: string; token: string }>;
 }
 
+function formatTimeRemaining(seconds: number): string {
+  if (seconds <= 0) return 'Expired';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  }
+  return `${secs}s`;
+}
+
 export default function ChainSelectionPage() {
   const params = useParams();
   const router = useRouter();
@@ -28,13 +44,11 @@ export default function ChainSelectionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payment, setPayment] = useState<any>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    fetchPayment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkId]);
-
-  async function fetchPayment() {
+  const fetchPayment = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${PUBLIC_API_BASE_URL}/public/payment/${linkId}`);
@@ -42,6 +56,14 @@ export default function ChainSelectionPage() {
       const data = await response.json();
       const paymentData = data.data;
       setPayment(paymentData);
+
+      // Update countdown based on expiresAt
+      if (paymentData?.expiresAt) {
+        const expiresAt = new Date(paymentData.expiresAt).getTime();
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setTimeRemaining(remaining);
+      }
 
       if (paymentData.availableOptions && paymentData.availableOptions.length === 1) {
         const option = paymentData.availableOptions[0];
@@ -52,7 +74,38 @@ export default function ChainSelectionPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [linkId, router, slug, date, order]);
+
+  useEffect(() => {
+    fetchPayment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkId]);
+
+  // Set up countdown timer
+  useEffect(() => {
+    if (!payment?.expiresAt) return;
+
+    const updateCountdown = () => {
+      const expiresAt = new Date(payment.expiresAt).getTime();
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
+      setTimeRemaining(remaining);
+
+      // If expired, refresh payment status
+      if (remaining === 0 && payment.status !== 'EXPIRED') {
+        fetchPayment();
+      }
+    };
+
+    updateCountdown();
+    countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [payment?.expiresAt, payment?.status, fetchPayment]);
 
   function getNetworkDisplayName(network: string): string {
     const names: Record<string, string> = {
@@ -87,7 +140,7 @@ export default function ChainSelectionPage() {
     );
   }
 
-  const isExpired = payment.status === 'EXPIRED';
+  const isExpired = payment.status === 'EXPIRED' || timeRemaining <= 0;
 
   return (
     <div className="min-h-screen bg-[var(--suzaa-surface-subtle)] py-8 px-4">
@@ -101,6 +154,16 @@ export default function ChainSelectionPage() {
             <p className="mt-2 text-xs text-white/75">
               Order #{payment.orderNumber} · {payment.currency} {payment.amountUsd}
             </p>
+            
+            {/* Countdown Timer */}
+            {!isExpired && (
+              <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <p className="text-[0.65rem] uppercase tracking-[0.24em] text-white/70">Link expires in</p>
+                <p className="mt-1 text-lg font-bold text-white">
+                  {formatTimeRemaining(timeRemaining)}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6 bg-white px-6 py-6">
@@ -167,9 +230,16 @@ export default function ChainSelectionPage() {
               </div>
             )}
 
-            <div className="text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
-              Expires {new Date(payment.expiresAt).toLocaleString()}
-            </div>
+            {!isExpired && (
+              <div className="rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)] px-4 py-3 text-center">
+                <p className="text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+                  Cryptocurrency quotes refresh every 60 seconds
+                </p>
+                <p className="mt-1 text-xs text-[var(--suzaa-muted)]">
+                  Prices update automatically on the payment page
+                </p>
+              </div>
+            )}
           </div>
           <div className="border-t border-[var(--suzaa-border)] bg-white/90 px-6 py-4 text-center text-[0.65rem] uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
             Powered by <span className="font-semibold text-[var(--suzaa-navy)]">SUZAA</span>
