@@ -69,9 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setMerchant(null);
         setUser(null);
       } else if (apiError?.status === 404) {
+        // 404 is expected for new signups without merchant profile yet
         setMerchant(null);
       } else {
         console.error('Unable to load merchant profile', error);
+        setMerchant(null);
       }
     } finally {
       setMerchantLoading(false);

@@ -126,7 +126,15 @@ export default function HomePage() {
       }
 
       if (mode === 'verify-register') {
-        await api.post('/auth/bootstrap', { businessName });
+        // Bootstrap merchant profile for new signups
+        try {
+          await api.post('/auth/bootstrap', { businessName });
+        } catch (bootstrapError: any) {
+          // If bootstrap fails, show error but don't block if it's just a profile issue
+          if (bootstrapError?.response?.status !== 500) {
+            throw bootstrapError;
+          }
+        }
       }
       
       // Now refresh merchant - this will also check suspension via /auth/me
@@ -138,6 +146,7 @@ export default function HomePage() {
         if (merchantResponse.data?.data) {
           // All checks passed, redirect to dashboard
           router.push('/dashboard/overview');
+          return;
         }
       } catch (meError: any) {
         // Check for suspension errors (403 Forbidden or 401 with suspension message)
@@ -152,9 +161,25 @@ export default function HomePage() {
           setError('Account has been suspended. Please contact support for assistance.');
           setLoading(false);
           return;
-        } else {
-          throw meError;
         }
+        
+        // For new signups, 404 is expected if merchant profile doesn't exist yet
+        // Try to bootstrap again or redirect to dashboard anyway
+        if (status === 404 && mode === 'verify-register') {
+          // Profile might not be created yet, try bootstrap again
+          try {
+            await api.post('/auth/bootstrap', { businessName });
+            await refreshMerchant();
+            router.push('/dashboard/overview');
+            return;
+          } catch (retryError: any) {
+            // If still fails, show error
+            throw retryError;
+          }
+        }
+        
+        // For other errors, throw to be caught by outer catch
+        throw meError;
       }
     } catch (error: any) {
       // Check for suspension errors (403 Forbidden or 401 with suspension message)

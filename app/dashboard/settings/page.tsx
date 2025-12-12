@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api, type ApiError } from '@/app/lib/api';
 import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { Key, RefreshCw } from 'lucide-react';
 
 interface Settings {
   businessName: string;
@@ -29,6 +30,9 @@ export default function SettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [apiKeyStatus, setApiKeyStatus] = useState<{ hasKey: boolean; fingerprint?: string; createdAt?: string } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const { user, merchant, loading: authLoading, merchantLoading, signOut, refreshMerchant } = useAuth();
   const canManage = useMemo(
     () => Boolean(!authLoading && !merchantLoading && user && merchant),
@@ -64,6 +68,47 @@ export default function SettingsPage() {
     }
     setLoading(false);
   }, [canManage, merchant, merchantLoading]);
+
+  // Fetch API key status
+  useEffect(() => {
+    if (!merchant?.id) return;
+
+    async function fetchApiKeyStatus() {
+      try {
+        const response = await api.get('/merchants/api-key');
+        setApiKeyStatus(response.data);
+      } catch (error: any) {
+        console.error('Failed to fetch API key status:', error);
+        setApiKeyStatus({ hasKey: false });
+      }
+    }
+
+    fetchApiKeyStatus();
+  }, [merchant?.id]);
+
+  async function handleGenerateApiKey() {
+    try {
+      setGenerating(true);
+      setError('');
+      setSuccess('');
+      setGeneratedKey(null);
+
+      const response = await api.post('/merchants/api-key');
+      
+      setGeneratedKey(response.data.apiKey);
+      setApiKeyStatus({
+        hasKey: true,
+        fingerprint: response.data.fingerprint,
+        createdAt: new Date().toISOString(),
+      });
+      setSuccess('API key generated! Copy it now - it will not be shown again.');
+    } catch (err: any) {
+      const apiError = err as ApiError;
+      setError(apiError.payload?.error || apiError.message || 'Failed to generate API key');
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -268,6 +313,65 @@ export default function SettingsPage() {
 
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Save Settings'}</button>
         </form>
+      </div>
+
+      {/* API Key Management */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-2xl mt-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Key className="h-5 w-5" />
+          API Key
+        </h2>
+
+        {apiKeyStatus === null ? (
+          <p className="text-sm text-gray-600">Loading...</p>
+        ) : apiKeyStatus.hasKey ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-green-900">Active API Key</p>
+                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded">Active</span>
+              </div>
+              <div className="bg-white rounded border border-green-200 p-3">
+                <p className="text-xs text-gray-600 mb-1">Fingerprint:</p>
+                <code className="text-sm font-mono text-gray-800">{apiKeyStatus.fingerprint}</code>
+              </div>
+            </div>
+
+            {generatedKey && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-900 mb-2">Your New API Key</p>
+                <div className="bg-white rounded border border-blue-200 p-3">
+                  <code className="text-xs font-mono text-gray-800 break-all">{generatedKey}</code>
+                </div>
+                <p className="text-xs text-blue-700 mt-2">⚠️ Save this key securely. It will not be shown again.</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleGenerateApiKey}
+              disabled={generating}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {generating ? 'Generating...' : 'Regenerate API Key'}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-semibold text-gray-900 mb-1">No API key yet</p>
+              <p className="text-xs text-gray-600">Generate an API key to integrate SUZAA with your server.</p>
+            </div>
+            <button
+              onClick={handleGenerateApiKey}
+              disabled={generating}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <Key className="h-4 w-4" />
+              {generating ? 'Generating...' : 'Generate API Key'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg border border-red-200 p-6 max-w-2xl mt-8">
