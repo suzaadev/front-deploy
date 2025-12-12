@@ -30,7 +30,6 @@ export default function SettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [apiKeyStatus, setApiKeyStatus] = useState<{ hasKey: boolean; fingerprint?: string; createdAt?: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const { user, merchant, loading: authLoading, merchantLoading, signOut, refreshMerchant } = useAuth();
@@ -69,23 +68,6 @@ export default function SettingsPage() {
     setLoading(false);
   }, [canManage, merchant, merchantLoading]);
 
-  // Fetch API key status
-  useEffect(() => {
-    if (!merchant?.id) return;
-
-    async function fetchApiKeyStatus() {
-      try {
-        const response = await api.get('/merchants/api-key');
-        setApiKeyStatus(response.data);
-      } catch (error: any) {
-        console.error('Failed to fetch API key status:', error);
-        setApiKeyStatus({ hasKey: false });
-      }
-    }
-
-    fetchApiKeyStatus();
-  }, [merchant?.id]);
-
   async function handleGenerateApiKey() {
     try {
       setGenerating(true);
@@ -96,11 +78,7 @@ export default function SettingsPage() {
       const response = await api.post('/merchants/api-key');
       
       setGeneratedKey(response.data.apiKey);
-      setApiKeyStatus({
-        hasKey: true,
-        fingerprint: response.data.fingerprint,
-        createdAt: new Date().toISOString(),
-      });
+      await refreshMerchant();
       setSuccess('API key generated! Copy it now - it will not be shown again.');
     } catch (err: any) {
       const apiError = err as ApiError;
@@ -322,9 +300,7 @@ export default function SettingsPage() {
           API Key
         </h2>
 
-        {apiKeyStatus === null ? (
-          <p className="text-sm text-gray-600">Loading...</p>
-        ) : apiKeyStatus.hasKey ? (
+        {merchant?.apiKeyFingerprint && merchant?.apiKeyCreatedAt ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-green-200 bg-green-50 p-4">
               <div className="flex items-center justify-between mb-2">
@@ -333,8 +309,11 @@ export default function SettingsPage() {
               </div>
               <div className="bg-white rounded border border-green-200 p-3">
                 <p className="text-xs text-gray-600 mb-1">Fingerprint:</p>
-                <code className="text-sm font-mono text-gray-800">{apiKeyStatus.fingerprint}</code>
+                <code className="text-sm font-mono text-gray-800">{merchant.apiKeyFingerprint}</code>
               </div>
+              {merchant.apiKeyCreatedAt && (
+                <p className="text-xs text-gray-600 mt-2">Created: {new Date(merchant.apiKeyCreatedAt).toLocaleString()}</p>
+              )}
             </div>
 
             {generatedKey && (

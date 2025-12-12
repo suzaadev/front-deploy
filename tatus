@@ -1,0 +1,134 @@
+[1mdiff --git a/app/contexts/AuthContext.tsx b/app/contexts/AuthContext.tsx[m
+[1mindex 3388695..fba3546 100644[m
+[1m--- a/app/contexts/AuthContext.tsx[m
+[1m+++ b/app/contexts/AuthContext.tsx[m
+[36m@@ -29,6 +29,8 @@[m [minterface MerchantProfile {[m
+   createdAt: string;[m
+   updatedAt: string;[m
+   lastLoginAt: string | null;[m
+[32m+[m[32m  apiKeyFingerprint: string | null;[m
+[32m+[m[32m  apiKeyCreatedAt: string | null;[m
+ }[m
+ [m
+ interface AuthContextType {[m
+[1mdiff --git a/app/dashboard/overview/page.tsx b/app/dashboard/overview/page.tsx[m
+[1mindex ae0c0d2..cd99e9d 100644[m
+[1m--- a/app/dashboard/overview/page.tsx[m
+[1m+++ b/app/dashboard/overview/page.tsx[m
+[36m@@ -3,7 +3,7 @@[m
+ import { useEffect, useState } from 'react';[m
+ import { useRouter } from 'next/navigation';[m
+ import { api } from '@/app/lib/api';[m
+[31m-import { DollarSign, Clock, CheckCircle, CreditCard, ExternalLink, Phone } from 'lucide-react';[m
+[32m+[m[32mimport { DollarSign, Clock, CheckCircle, CreditCard, ExternalLink, Phone, Key } from 'lucide-react';[m
+ import { useAuth } from '@/app/contexts/AuthContext';[m
+ import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';[m
+ [m
+[36m@@ -220,6 +220,34 @@[m [mexport default function OverviewPage() {[m
+           )}[m
+         </div>[m
+       </div>[m
+[32m+[m
+[32m+[m[32m      {/* API Key Info Row */}[m
+[32m+[m[32m      {merchant?.apiKeyFingerprint && merchant?.apiKeyCreatedAt && ([m
+[32m+[m[32m        <div className="surface-card">[m
+[32m+[m[32m          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">[m
+[32m+[m[32m            <div className="flex items-center gap-2">[m
+[32m+[m[32m              <Key className="h-4 w-4 text-[var(--suzaa-muted)]" />[m
+[32m+[m[32m              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">[m
+[32m+[m[32m                API Key[m
+[32m+[m[32m              </p>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">[m
+[32m+[m[32m              <div>[m
+[32m+[m[32m                <p className="text-xs text-[var(--suzaa-muted)]">Fingerprint</p>[m
+[32m+[m[32m                <p className="text-sm font-mono font-semibold text-[var(--suzaa-navy)]">[m
+[32m+[m[32m                  {merchant.apiKeyFingerprint}[m
+[32m+[m[32m                </p>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m              <div>[m
+[32m+[m[32m                <p className="text-xs text-[var(--suzaa-muted)]">Created</p>[m
+[32m+[m[32m                <p className="text-sm font-semibold text-[var(--suzaa-navy)]">[m
+[32m+[m[32m                  {new Date(merchant.apiKeyCreatedAt).toLocaleString()}[m
+[32m+[m[32m                </p>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </div>[m
+[32m+[m[32m        </div>[m
+[32m+[m[32m      )}[m
+     </div>[m
+   );[m
+ [m
+[1mdiff --git a/app/dashboard/settings/page.tsx b/app/dashboard/settings/page.tsx[m
+[1mindex 1d207f3..6920baa 100644[m
+[1m--- a/app/dashboard/settings/page.tsx[m
+[1m+++ b/app/dashboard/settings/page.tsx[m
+[36m@@ -30,7 +30,6 @@[m [mexport default function SettingsPage() {[m
+   const [deleteConfirmation, setDeleteConfirmation] = useState('');[m
+   const [deleting, setDeleting] = useState(false);[m
+   const [deleteError, setDeleteError] = useState('');[m
+[31m-  const [apiKeyStatus, setApiKeyStatus] = useState<{ hasKey: boolean; fingerprint?: string; createdAt?: string } | null>(null);[m
+   const [generating, setGenerating] = useState(false);[m
+   const [generatedKey, setGeneratedKey] = useState<string | null>(null);[m
+   const { user, merchant, loading: authLoading, merchantLoading, signOut, refreshMerchant } = useAuth();[m
+[36m@@ -69,23 +68,6 @@[m [mexport default function SettingsPage() {[m
+     setLoading(false);[m
+   }, [canManage, merchant, merchantLoading]);[m
+ [m
+[31m-  // Fetch API key status[m
+[31m-  useEffect(() => {[m
+[31m-    if (!merchant?.id) return;[m
+[31m-[m
+[31m-    async function fetchApiKeyStatus() {[m
+[31m-      try {[m
+[31m-        const response = await api.get('/merchants/api-key');[m
+[31m-        setApiKeyStatus(response.data);[m
+[31m-      } catch (error: any) {[m
+[31m-        console.error('Failed to fetch API key status:', error);[m
+[31m-        setApiKeyStatus({ hasKey: false });[m
+[31m-      }[m
+[31m-    }[m
+[31m-[m
+[31m-    fetchApiKeyStatus();[m
+[31m-  }, [merchant?.id]);[m
+[31m-[m
+   async function handleGenerateApiKey() {[m
+     try {[m
+       setGenerating(true);[m
+[36m@@ -96,11 +78,7 @@[m [mexport default function SettingsPage() {[m
+       const response = await api.post('/merchants/api-key');[m
+       [m
+       setGeneratedKey(response.data.apiKey);[m
+[31m-      setApiKeyStatus({[m
+[31m-        hasKey: true,[m
+[31m-        fingerprint: response.data.fingerprint,[m
+[31m-        createdAt: new Date().toISOString(),[m
+[31m-      });[m
+[32m+[m[32m      await refreshMerchant();[m
+       setSuccess('API key generated! Copy it now - it will not be shown again.');[m
+     } catch (err: any) {[m
+       const apiError = err as ApiError;[m
+[36m@@ -322,9 +300,7 @@[m [mexport default function SettingsPage() {[m
+           API Key[m
+         </h2>[m
+ [m
+[31m-        {apiKeyStatus === null ? ([m
+[31m-          <p className="text-sm text-gray-600">Loading...</p>[m
+[31m-        ) : apiKeyStatus.hasKey ? ([m
+[32m+[m[32m        {merchant?.apiKeyFingerprint && merchant?.apiKeyCreatedAt ? ([m
+           <div className="space-y-4">[m
+             <div className="rounded-lg border border-green-200 bg-green-50 p-4">[m
+               <div className="flex items-center justify-between mb-2">[m
+[36m@@ -333,8 +309,11 @@[m [mexport default function SettingsPage() {[m
+               </div>[m
+               <div className="bg-white rounded border border-green-200 p-3">[m
+                 <p className="text-xs text-gray-600 mb-1">Fingerprint:</p>[m
+[31m-                <code className="text-sm font-mono text-gray-800">{apiKeyStatus.fingerprint}</code>[m
+[32m+[m[32m                <code className="text-sm font-mono text-gray-800">{merchant.apiKeyFingerprint}</code>[m
+               </div>[m
+[32m+[m[32m              {merchant.apiKeyCreatedAt && ([m
+[32m+[m[32m                <p className="text-xs text-gray-600 mt-2">Created: {new Date(merchant.apiKeyCreatedAt).toLocaleString()}</p>[m
+[32m+[m[32m              )}[m
+             </div>[m
+ [m
+             {generatedKey && ([m

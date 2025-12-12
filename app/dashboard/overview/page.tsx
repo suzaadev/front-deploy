@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/app/lib/api';
-import { DollarSign, Clock, CheckCircle, CreditCard, ExternalLink, Phone } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, CreditCard, ExternalLink, Phone, Key } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { PAYMENT_PORTAL_BASE_URL } from '@/app/lib/config';
 
@@ -220,6 +220,34 @@ export default function OverviewPage() {
           )}
         </div>
       </div>
+
+      {/* API Key Info Row */}
+      {merchant?.apiKeyFingerprint && merchant?.apiKeyCreatedAt && (
+        <div className="surface-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Key className="h-4 w-4 text-[var(--suzaa-muted)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--suzaa-muted)]">
+                API Key
+              </p>
+            </div>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+              <div>
+                <p className="text-xs text-[var(--suzaa-muted)]">Fingerprint</p>
+                <p className="text-sm font-mono font-semibold text-[var(--suzaa-navy)]">
+                  {merchant.apiKeyFingerprint}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--suzaa-muted)]">Created</p>
+                <p className="text-sm font-semibold text-[var(--suzaa-navy)]">
+                  {new Date(merchant.apiKeyCreatedAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

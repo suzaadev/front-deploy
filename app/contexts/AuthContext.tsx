@@ -29,6 +29,8 @@ interface MerchantProfile {
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string | null;
+  apiKeyFingerprint: string | null;
+  apiKeyCreatedAt: string | null;
 }
 
 interface AuthContextType {
