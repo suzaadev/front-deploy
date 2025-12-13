@@ -28,6 +28,7 @@ interface PaymentData {
   status: string;
   expiresAt: string;
   settlementStatus?: string;
+  redirectUrl?: string | null;
   merchant: { name: string; slug: string };
   wallets: Wallet[];
 }
@@ -77,6 +78,8 @@ export default function PublicPaymentPage() {
   const [secondsSinceRefresh, setSecondsSinceRefresh] = useState<number>(0);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const quoteRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -186,6 +189,9 @@ export default function PublicPaymentPage() {
       if (refreshTimerIntervalRef.current) {
         clearInterval(refreshTimerIntervalRef.current);
       }
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -216,6 +222,10 @@ export default function PublicPaymentPage() {
       }
 
       const data = await response.json();
+      
+      // Store redirectUrl before refreshing (in case payment state hasn't updated yet)
+      const currentRedirectUrl = payment?.redirectUrl;
+      
       setStatusMessage({
         type: 'success',
         text: data.message || `Status updated to ${status === 'CANCELED' ? 'Canceled' : 'Claimed Paid'}`,
@@ -223,6 +233,41 @@ export default function PublicPaymentPage() {
 
       // Refresh payment data to get updated status
       await fetchPayment(true);
+
+      // Check if redirectUrl exists and handle redirect
+      if (currentRedirectUrl) {
+        // Check localStorage to prevent redirect loops
+        const redirectKey = `redirect_${linkId}_${status}`;
+        if (localStorage.getItem(redirectKey)) {
+          // Already redirected, don't redirect again
+          return;
+        }
+
+        // Set flag in localStorage
+        localStorage.setItem(redirectKey, 'true');
+
+        // Set redirecting state
+        setRedirecting(true);
+
+        // Wait 2.5 seconds, then redirect
+          redirectTimeoutRef.current = setTimeout(() => {
+            try {
+              const redirectUrl = new URL(currentRedirectUrl);
+              redirectUrl.searchParams.set('paymentId', linkId);
+              redirectUrl.searchParams.set('status', status.toLowerCase());
+              
+              window.location.href = redirectUrl.toString();
+          } catch (err) {
+            // Invalid URL or redirect failed
+            setRedirecting(false);
+            localStorage.removeItem(redirectKey);
+            setStatusMessage({
+              type: 'error',
+              text: 'Failed to redirect to store, but if you marked as paid, the merchant will review and confirm as usual.',
+            });
+          }
+        }, 2500);
+      }
     } catch (err: any) {
       setStatusMessage({
         type: 'error',
@@ -521,17 +566,23 @@ export default function PublicPaymentPage() {
                     </div>
                   )}
 
+                  {redirecting && (
+                    <div className="mb-4 rounded-xl border border-[rgba(59,130,246,0.25)] bg-[rgba(59,130,246,0.08)] px-4 py-3 text-xs text-[var(--suzaa-blue)]">
+                      Redirecting you back to the store...
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <button
                       onClick={() => updatePaymentStatus('CANCELED')}
-                      disabled={isUpdatingStatus || payment.status === 'EXPIRED' || payment.settlementStatus === 'CANCELED'}
+                      disabled={isUpdatingStatus || redirecting || payment.status === 'EXPIRED' || payment.settlementStatus === 'CANCELED'}
                       className="btn-secondary flex-1 justify-center border-[var(--suzaa-border)] text-[var(--suzaa-midnight)] hover:bg-[var(--suzaa-surface-muted)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isUpdatingStatus ? 'Updating...' : payment.settlementStatus === 'CANCELED' ? 'Canceled' : 'Cancel'}
                     </button>
                     <button
                       onClick={() => updatePaymentStatus('CLAIMED_PAID')}
-                      disabled={isUpdatingStatus || payment.status === 'EXPIRED' || payment.settlementStatus === 'CLAIMED_PAID'}
+                      disabled={isUpdatingStatus || redirecting || payment.status === 'EXPIRED' || payment.settlementStatus === 'CLAIMED_PAID'}
                       className="btn-primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isUpdatingStatus ? 'Updating...' : payment.settlementStatus === 'CLAIMED_PAID' ? 'Marked as Paid' : 'I Paid'}

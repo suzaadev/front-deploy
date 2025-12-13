@@ -18,6 +18,7 @@ interface PaymentRequest {
   createdBy: string;
   createdByIp: string | null;
   buyerNote: string | null;
+  redirectUrl: string | null;
   settlementStatus: string;
   expiryMinutes: number;
   expiresAt: string;
@@ -157,6 +158,24 @@ export default function PaymentRequestDetailPage() {
                 </p>
               </div>
             </div>
+            {payment.redirectUrl && (
+              <div className="mt-6 rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)]/70 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
+                  Redirect URL
+                </p>
+                <a
+                  href={payment.redirectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block break-all text-sm text-[var(--suzaa-blue)] hover:text-[var(--suzaa-teal)] hover:underline"
+                >
+                  {payment.redirectUrl}
+                </a>
+                <p className="mt-2 text-xs text-[var(--suzaa-muted)]">
+                  Customer will be redirected here after marking payment as canceled or paid
+                </p>
+              </div>
+            )}
             {payment.description && (
               <div className="mt-6 rounded-2xl border border-[var(--suzaa-border)] bg-[var(--suzaa-surface-muted)]/70 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[var(--suzaa-muted)]">
